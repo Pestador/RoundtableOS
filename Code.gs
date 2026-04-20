@@ -137,6 +137,7 @@ function doPost(e) {
       setupSpreadsheet: setupSpreadsheet,
       addIdea: addIdea,
       draftIdeaFromBrief: draftIdeaFromBrief,
+      expandIdeaBrief: expandIdeaBrief,
       updateIdea: updateIdea,
       getIdeas: getIdeas,
       getIdeaById: getIdeaById,

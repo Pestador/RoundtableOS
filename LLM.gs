@@ -102,6 +102,29 @@ function draftIdeaFromBrief(brief, options) {
   };
 }
 
+function expandIdeaBrief(brief, options) {
+  brief = String(brief || '').trim();
+  if (!brief) {
+    throw new Error('Add a short idea brief before asking the Roundtable to expand it.');
+  }
+
+  var llmResult = callLLMWithMetadata_(buildIdeaBriefExpansionPrompt_(brief), options || {});
+  var parsed = sanitizeExpandedBriefResponse_(llmResult.text, brief);
+
+  return {
+    ok: llmResult.ok,
+    provider: llmResult.provider,
+    model: llmResult.model,
+    expandedBrief: parsed.text,
+    fallbackUsed: parsed.fallbackUsed || !llmResult.ok,
+    message:
+      parsed.fallbackUsed || !llmResult.ok
+        ? 'A richer fallback brief has been generated from your prompt.'
+        : 'Idea brief expanded.',
+    error: llmResult.error || '',
+  };
+}
+
 function runBrainstormSession(ideaId, mode) {
   var session = createSession(ideaId, mode);
   var personas = getBrainstormPersonas_(session.mode);
@@ -245,6 +268,21 @@ function buildIdeaDraftPrompt_(brief) {
   ].join('\n');
 }
 
+function buildIdeaBriefExpansionPrompt_(brief) {
+  return [
+    'You are the Roundtable OS intake editor.',
+    'Rewrite the raw idea note below into a much richer product brief while preserving the user intent.',
+    'Expand it with clear detail about the user, the problem, the workflow, the output, and what makes the concept compelling.',
+    'Keep it plain text only.',
+    'Do not use bullet points, headings, numbering, JSON, or markdown.',
+    'Write 130 to 220 words.',
+    'Make it feel like a sharper, more complete version of the same idea, not a different idea.',
+    '',
+    'Raw idea note:',
+    brief,
+  ].join('\n');
+}
+
 function buildSynthesisPrompt_(idea, mode, turns) {
   var transcript = turns
     .map(function (turn) {
@@ -333,6 +371,30 @@ function parseIdeaDraftResponse_(responseText, brief) {
       fallbackUsed: true,
     };
   }
+}
+
+function sanitizeExpandedBriefResponse_(responseText, brief) {
+  var fallback = buildIdeaBriefExpansionFallback_(brief);
+  var cleaned = String(responseText || '')
+    .replace(/```(?:json|text|markdown)?/gi, '')
+    .replace(/```/g, '')
+    .replace(/^["']|["']$/g, '')
+    .replace(/\r/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  if (!cleaned || cleaned.length < 80) {
+    return {
+      text: fallback,
+      fallbackUsed: true,
+    };
+  }
+
+  return {
+    text: cleaned.slice(0, 1400),
+    fallbackUsed: false,
+  };
 }
 
 function callLLM(prompt) {
@@ -667,6 +729,13 @@ function buildFallbackTurn_(persona, idea) {
       ' could not reach the configured model, so this fallback note keeps the session moving: revisit "' +
       idea.Name +
       '" by tightening the user problem, naming the riskiest assumption, and defining one concrete test for the next 7 days.',
+  ].join(' ');
+}
+
+function buildIdeaBriefExpansionFallback_(brief) {
+  return [
+    'This idea starts from the core concept of ' + brief + '.',
+    'The product should help a clearly defined user move from a messy starting point into a more structured and actionable outcome. It should make the problem explicit, explain the friction the user faces today, and show how the experience guides them step by step toward clarity. The brief should also make the end result tangible, including the kind of insight, output, or transformation the user walks away with. A strong version of this concept should feel practical, differentiated, and immediately useful, giving the user confidence that the idea can become something real instead of staying as a vague thought.',
   ].join(' ');
 }
 

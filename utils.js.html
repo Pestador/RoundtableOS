@@ -669,6 +669,11 @@
           return;
         }
 
+        if (action === 'expand-idea-brief') {
+          await handleIdeaBriefExpansionRequest_(element.closest('form'));
+          return;
+        }
+
         if (action === 'clear-idea-brief-draft') {
           clearIdeaDraftForm_(element.closest('form'));
           return;
@@ -1384,6 +1389,31 @@
       } catch (error) {
         setIdeaDraftStatus_(form, error.message || 'Failed to draft the idea from your brief.', 'error');
         showToast_(error.message || 'Failed to draft the idea from your brief.', 'error');
+      } finally {
+        setFormBusy_(form, false);
+      }
+    }
+
+    async function handleIdeaBriefExpansionRequest_(form) {
+      if (!form) {
+        return;
+      }
+      var briefField = form.querySelector('[data-idea-brief]');
+      var brief = briefField ? briefField.value : '';
+      if (!String(brief || '').trim()) {
+        showToast_('Add a short idea brief first so the Roundtable has something to expand.', 'error');
+        if (briefField) {
+          briefField.focus();
+        }
+        return;
+      }
+
+      setFormBusy_(form, true);
+      try {
+        await requestIdeaBriefExpansion_(form, brief, { silentToast: false });
+      } catch (error) {
+        setIdeaDraftStatus_(form, error.message || 'Failed to expand the idea brief.', 'error');
+        showToast_(error.message || 'Failed to expand the idea brief.', 'error');
       } finally {
         setFormBusy_(form, false);
       }
@@ -3757,6 +3787,29 @@
       );
       if (!options.silentToast) {
         showToast_(result.fallbackUsed ? 'Draft ready with fallback guidance.' : 'Idea draft generated.', 'success');
+      }
+      return result;
+    }
+
+    async function requestIdeaBriefExpansion_(form, brief, options) {
+      options = options || {};
+      setIdeaDraftStatus_(form, 'Expanding your rough note into a richer idea brief...', 'info');
+      var result = await AppApi.expandIdeaBrief(brief);
+      var briefField = form ? form.querySelector('[data-idea-brief]') : null;
+      if (briefField) {
+        briefField.value = result.expandedBrief || brief;
+        briefField.focus();
+        briefField.setSelectionRange(briefField.value.length, briefField.value.length);
+      }
+      setIdeaDraftStatus_(
+        form,
+        result.fallbackUsed
+          ? 'The brief was expanded with fallback guidance. Review it, then use Prefill With AI when you are ready.'
+          : 'The brief has been expanded. Review it, then use Prefill With AI to structure the full spark.',
+        result.fallbackUsed ? 'warning' : 'success'
+      );
+      if (!options.silentToast) {
+        showToast_(result.fallbackUsed ? 'Brief expanded with fallback guidance.' : 'Brief expanded with AI.', 'success');
       }
       return result;
     }
