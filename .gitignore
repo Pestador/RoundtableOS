@@ -1,5 +1,6 @@
 .clasp.json
 .clasprc*.json
+.last-preview-deploy.json
 .npm-cache/
 _inspection_screens/
 _syntax_check/

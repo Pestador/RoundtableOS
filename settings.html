@@ -330,27 +330,71 @@
         <div class="space-y-1">
           <h2 class="font-headline text-2xl font-bold tracking-tight">Workspace & Appearance</h2>
           <p class="text-sm text-on-surface-variant">
-            Keep the Sheets linkage visible and sync a simple dark mode preference back into the app.
+            Keep the Sheets linkage visible, repair setup drift when needed, and control how the editorial theme behaves.
           </p>
         </div>
 
         <div class="grid gap-4">
-          <div class="bg-surface-container-highest rounded-lg px-4 py-4 space-y-1">
+          <div class="bg-surface-container-highest rounded-lg px-4 py-4 space-y-3">
             <div class="text-xs uppercase tracking-[0.12em] font-medium text-on-surface-variant">Spreadsheet ID</div>
             <div
               class="text-sm break-all"
               data-settings-spreadsheet-id
             ></div>
+            <div
+              class="text-xs text-on-surface-variant"
+              data-settings-spreadsheet-name
+            ></div>
           </div>
-          <label class="flex items-center justify-between bg-surface-container-highest rounded-lg px-4 py-3">
-            <span class="font-medium">Dark mode</span>
-            <input
-              name="darkModeEnabled"
-              type="checkbox"
-              value="true"
-              class="h-5 w-5 rounded border-outline-variant text-primary focus:ring-primary"
-            />
+
+          <div class="bg-surface-container-highest rounded-lg px-4 py-4 space-y-3">
+            <div class="text-xs uppercase tracking-[0.12em] font-medium text-on-surface-variant">Workspace Health</div>
+            <div
+              class="text-sm text-on-surface-variant space-y-1"
+              data-settings-app-status
+            ></div>
+            <div class="flex flex-wrap gap-3">
+              <button
+                type="button"
+                data-action="setup-workspace"
+                class="px-4 py-2.5 rounded-lg ghost-border text-primary font-medium hover:bg-surface-container-low transition-all duration-200 ease-in-out"
+              >
+                Run Setup / Repair
+              </button>
+              <button
+                type="button"
+                data-action="run-smoke-checks"
+                class="px-4 py-2.5 rounded-lg ghost-border text-primary font-medium hover:bg-surface-container-low transition-all duration-200 ease-in-out"
+              >
+                Run Smoke Checks
+              </button>
+            </div>
+            <div
+              class="text-xs text-on-surface-variant"
+              data-settings-smoke-summary
+            ></div>
+          </div>
+
+          <label class="space-y-2 block">
+            <span class="text-xs uppercase tracking-[0.12em] font-medium">Theme Preference</span>
+            <select
+              name="themePreference"
+              class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+            >
+              <option value="system">Follow system</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
           </label>
+          <div
+            class="bg-surface-container-highest rounded-lg px-4 py-4 space-y-2"
+            data-settings-smoke-results
+          >
+            <div class="text-xs uppercase tracking-[0.12em] font-medium text-on-surface-variant">Preview Diagnostics</div>
+            <div class="text-sm text-on-surface-variant">
+              Run smoke checks here after a preview deployment to confirm the key read models are healthy before promoting live.
+            </div>
+          </div>
         </div>
       </section>
 

@@ -131,21 +131,34 @@ function runBrainstormSession(ideaId, mode) {
   var lastResult = null;
 
   for (var turnIndex = 0; turnIndex < personas.length; turnIndex += 1) {
-    lastResult = runNextBrainstormTurn(session.sessionId, ideaId, session.mode, turnIndex);
+    lastResult = runNextBrainstormTurn(session.sessionId, turnIndex);
   }
 
   return lastResult || getSessionProgress(session.sessionId);
 }
 
-function runNextBrainstormTurn(sessionId, ideaId, mode, turnIndex) {
+function runNextBrainstormTurn(sessionId, turnIndex) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    mode = normalizeBrainstormMode_(mode);
+    var meta = getSessionMeta_(sessionId);
+    if (!meta.ideaId || !meta.mode) {
+      throw new Error('The brainstorm session is missing trusted metadata. Start a new session and try again.');
+    }
+
+    var mode = normalizeBrainstormMode_(meta.mode);
     var personas = getBrainstormPersonas_(mode);
     var progress = getSessionProgress(sessionId);
     if (progress.complete) {
       return progress;
+    }
+
+    if (progress.ideaId && String(progress.ideaId) !== String(meta.ideaId)) {
+      throw new Error('Session integrity check failed because the stored idea does not match this session.');
+    }
+
+    if (progress.mode && normalizeBrainstormMode_(progress.mode) !== mode) {
+      throw new Error('Session integrity check failed because the stored mode does not match this session.');
     }
 
     var completedTurns = (progress.turns || []).filter(function (turn) {
@@ -160,9 +173,9 @@ function runNextBrainstormTurn(sessionId, ideaId, mode, turnIndex) {
       throw new Error('Turn index is out of bounds for mode "' + mode + '".');
     }
 
-    var idea = getIdeaById(ideaId);
+    var idea = getIdeaById(meta.ideaId);
     if (!idea) {
-      throw new Error('Idea not found for brainstorm: ' + ideaId);
+      throw new Error('Idea not found for brainstorm: ' + meta.ideaId);
     }
 
     var persona = personas[turnIndex];

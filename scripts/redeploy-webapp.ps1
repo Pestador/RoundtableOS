@@ -1,6 +1,8 @@
 param(
   [Parameter(Mandatory = $true)][string]$DeploymentId,
-  [string]$Description = ''
+  [string]$Description = '',
+  [string]$VersionNumber = '',
+  [switch]$SkipPush
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,34 +21,46 @@ if (-not (Test-Path $projectFile)) {
 
 & (Join-Path $PSScriptRoot 'validate-app.ps1')
 
-Write-Host 'Pushing the latest local source before redeploying the web app...'
-& npx.cmd --cache (Join-Path $root '.npm-cache') @google/clasp --auth $authFile --project $projectFile push
-if ($LASTEXITCODE -ne 0) {
-  throw 'clasp push failed before redeploy.'
-}
-
 if (-not $Description) {
   $Description = 'Validated redeploy ' + (Get-Date -Format 'yyyy-MM-dd HH:mm')
 }
 
-Write-Host "Creating a new Apps Script version: $Description"
-$versionOutput = & npx.cmd --cache (Join-Path $root '.npm-cache') @google/clasp --auth $authFile --project $projectFile version $Description
-if ($LASTEXITCODE -ne 0) {
-  throw 'Failed to create a new Apps Script version.'
+if (-not $VersionNumber) {
+  if (-not $SkipPush) {
+    Write-Host 'Pushing the latest local source before updating the deployment...'
+    & npx.cmd --cache (Join-Path $root '.npm-cache') @google/clasp --auth $authFile --project $projectFile push
+    if ($LASTEXITCODE -ne 0) {
+      throw 'clasp push failed before deployment.'
+    }
+  }
+
+  Write-Host "Creating a new Apps Script version: $Description"
+  $versionOutput = & npx.cmd --cache (Join-Path $root '.npm-cache') @google/clasp --auth $authFile --project $projectFile version $Description
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to create a new Apps Script version.'
+  }
+
+  $versionText = ($versionOutput | Out-String)
+  $versionMatch = [regex]::Match($versionText, 'Created version (\d+)')
+  if (-not $versionMatch.Success) {
+    throw "Could not parse the new version number from clasp output: $versionText"
+  }
+
+  $VersionNumber = $versionMatch.Groups[1].Value
 }
 
-$versionText = ($versionOutput | Out-String)
-$versionMatch = [regex]::Match($versionText, 'Created version (\d+)')
-if (-not $versionMatch.Success) {
-  throw "Could not parse the new version number from clasp output: $versionText"
-}
+Write-Host "Updating deployment $DeploymentId with version $VersionNumber"
 
-$versionNumber = $versionMatch.Groups[1].Value
-Write-Host "Redeploying deployment $DeploymentId with version $versionNumber"
-
-& npx.cmd --cache (Join-Path $root '.npm-cache') @google/clasp --auth $authFile --project $projectFile deploy --deploymentId $DeploymentId --versionNumber $versionNumber --description $Description
+& npx.cmd --cache (Join-Path $root '.npm-cache') @google/clasp --auth $authFile --project $projectFile deploy --deploymentId $DeploymentId --versionNumber $VersionNumber --description $Description
 if ($LASTEXITCODE -ne 0) {
   throw 'Web app redeploy failed.'
 }
 
-Write-Host "Redeploy complete. Deployment $DeploymentId now points at version $versionNumber."
+Write-Host "Deploy complete. Deployment $DeploymentId now points at version $VersionNumber."
+Write-Output (
+  @{
+    deploymentId = $DeploymentId
+    versionNumber = [string]$VersionNumber
+    description = $Description
+  } | ConvertTo-Json -Compress
+)

@@ -133,12 +133,15 @@
     var App = {
       state: {
         settings: null,
+        appStatus: null,
         dashboard: null,
         ideas: null,
         resources: null,
         tasks: null,
         sessionHistory: null,
         activeSession: null,
+        personaAvatars: null,
+        smokeChecks: null,
         dragging: null,
         drawerHtml: '',
         modalHtml: '',
@@ -191,11 +194,15 @@
       renderShell_();
       renderLoadingRoute_('Preparing the Roundtable workspace...');
       try {
-        await AppApi.setupSpreadsheet();
+        App.state.appStatus = await AppApi.getAppStatus();
         App.state.settings = await AppApi.getSettings();
-        applyTheme_(String(App.state.settings.darkModeEnabled) === 'true');
+        applyThemePreference_(App.state.settings.themePreference || 'system');
         renderShell_();
+        if (App.state.appStatus && !App.state.appStatus.ready && parseHash_(window.location.hash).name !== 'settings') {
+          window.history.replaceState(null, '', '#settings');
+        }
         await loadRoute(true);
+        warmPersonaAvatars_();
       } catch (error) {
         renderFatalState_(error);
         showToast_(error.message || 'Failed to initialize the app.', 'error');
@@ -221,6 +228,13 @@
         renderShell_();
         closeDrawer_();
         renderLoadingRoute_('Loading view...');
+
+        if (App.state.appStatus && !App.state.appStatus.ready && route.name !== 'settings') {
+          renderTemplateIntoOutlet_('template-settings');
+          renderSettings_();
+          showToast_('The workspace needs setup or repair before the main routes can load.', 'error');
+          return;
+        }
 
         if (route.name === 'dashboard') {
           await ensureDashboard_(force);
@@ -269,7 +283,7 @@
         }
 
         if (route.name === 'settings') {
-          await ensureSettings_(force);
+          await Promise.all([ensureSettings_(force), ensureAppStatus_(force)]);
           renderSettings_();
           return;
         }
@@ -664,6 +678,31 @@
           return;
         }
 
+        if (action === 'setup-workspace') {
+          await AppApi.setupSpreadsheet();
+          invalidate(['ideas', 'resources', 'tasks', 'sessionHistory', 'dashboard']);
+          await ensureAppStatus_(true);
+          App.state.smokeChecks = null;
+          App.state.settings = await AppApi.getSettings();
+          renderShell_();
+          renderSettings_();
+          showToast_('Workspace setup and repair completed.', 'success');
+          return;
+        }
+
+        if (action === 'run-smoke-checks') {
+          var root = document.getElementById('route-outlet');
+          var smokeSummary = root ? root.querySelector('[data-settings-smoke-summary]') : null;
+          if (smokeSummary) {
+            smokeSummary.textContent = 'Running authenticated smoke checks...';
+          }
+          App.state.smokeChecks = await AppApi.runSmokeChecks();
+          await ensureAppStatus_(true);
+          renderSettings_();
+          showToast_(App.state.smokeChecks.ok ? 'Smoke checks passed.' : 'Smoke checks found issues.', App.state.smokeChecks.ok ? 'success' : 'error');
+          return;
+        }
+
         if (action === 'draft-idea-brief') {
           await handleIdeaDraftRequest_(element.closest('form'));
           return;
@@ -895,6 +934,41 @@
         App.state.settings = await AppApi.getSettings();
       }
       return App.state.settings;
+    }
+
+    async function ensureAppStatus_(force) {
+      if (!App.state.appStatus || force) {
+        App.state.appStatus = await AppApi.getAppStatus();
+      }
+      return App.state.appStatus;
+    }
+
+    async function ensurePersonaAvatars_(force) {
+      if (!App.state.personaAvatars || force) {
+        App.state.personaAvatars = await AppApi.getPersonaAvatars();
+      }
+      return App.state.personaAvatars;
+    }
+
+    function warmPersonaAvatars_() {
+      var hasPersonaAvatars =
+        App.state.settings &&
+        App.state.settings.personaProfiles &&
+        Object.keys(App.state.settings.personaProfiles).some(function (key) {
+          return !!(App.state.settings.personaProfiles[key] && App.state.settings.personaProfiles[key].hasAvatar);
+        });
+      if (!hasPersonaAvatars || App.state.personaAvatars) {
+        return;
+      }
+
+      ensurePersonaAvatars_(false)
+        .then(function () {
+          renderShell_();
+          if (App.state.route) {
+            loadRoute(false);
+          }
+        })
+        .catch(function () {});
     }
 
     async function ensureIdeas_(force) {
@@ -1363,10 +1437,15 @@
       var form = root.querySelector('#settings-form');
       populateForm_(form, App.state.settings);
       form.querySelector('[name="notificationsEnabled"]').checked = String(App.state.settings.notificationsEnabled) === 'true';
-      form.querySelector('[name="darkModeEnabled"]').checked = String(App.state.settings.darkModeEnabled) === 'true';
       root.querySelector('[data-settings-spreadsheet-id]').textContent = App.state.settings.spreadsheetId || 'Not linked yet';
+      root.querySelector('[data-settings-spreadsheet-name]').textContent = App.state.settings.spreadsheetName
+        ? 'Spreadsheet name: ' + App.state.settings.spreadsheetName
+        : 'Spreadsheet name unavailable.';
       syncSettingsProviderUi_(form, App.state.settings);
+      renderAppStatusSummary_(root);
+      renderSmokeChecks_(root);
       renderPersonaSettingsGrid_(root, App.state.settings);
+      warmPersonaAvatars_();
     }
 
     async function handleIdeaDraftRequest_(form) {
@@ -1473,14 +1552,15 @@
       try {
         var payload = formToObject_(form);
         payload.notificationsEnabled = form.querySelector('[name="notificationsEnabled"]').checked ? 'true' : 'false';
-        payload.darkModeEnabled = form.querySelector('[name="darkModeEnabled"]').checked ? 'true' : 'false';
         payload.personaProfiles = collectPersonaProfilesFromForm_(form);
         App.state.settings = await AppApi.saveSettings(payload);
+        App.state.personaAvatars = null;
         App.state.personaUploads = {};
-        localStorage.setItem('rtos-theme', App.state.settings.darkModeEnabled === 'true' ? 'dark' : 'light');
-        applyTheme_(App.state.settings.darkModeEnabled === 'true');
+        persistThemePreference_(App.state.settings.themePreference || 'system');
+        applyThemePreference_(App.state.settings.themePreference || 'system');
         renderShell_();
         renderSettings_();
+        warmPersonaAvatars_();
         showToast_('Settings saved.', 'success');
       } catch (error) {
         showToast_(error.message || 'Failed to save settings.', 'error');
@@ -1537,12 +1617,7 @@
         var previousTurnCount = (session.turns || []).filter(function (turn) {
           return turn.Agent !== 'Synthesis';
         }).length;
-        var progress = await AppApi.runNextBrainstormTurn(
-          session.sessionId,
-          session.ideaId,
-          session.mode,
-          session.nextTurnIndex
-        );
+        var progress = await AppApi.runNextBrainstormTurn(session.sessionId, session.nextTurnIndex);
         var autoplay = session.autoplay !== false;
         App.state.activeSession = hydrateActiveSessionFromProgress_(progress, session.mode);
         App.state.activeSession.autoplay = autoplay && !App.state.activeSession.complete;
@@ -1924,6 +1999,68 @@
       }
     }
 
+    function renderAppStatusSummary_(root) {
+      var target = root.querySelector('[data-settings-app-status]');
+      if (!target) {
+        return;
+      }
+      var status = App.state.appStatus || null;
+      if (!status) {
+        target.innerHTML = '<div>Workspace health has not been checked yet.</div>';
+        return;
+      }
+      target.innerHTML = [
+        '<div class="' + (status.ready ? 'text-secondary' : 'text-error') + ' font-medium">' + escapeHtml_(status.ready ? 'Ready for normal app use.' : 'Setup or repair is required before the main routes can load cleanly.') + '</div>',
+        '<div>' + escapeHtml_(status.message || '') + '</div>',
+      ].join('');
+    }
+
+    function renderSmokeChecks_(root) {
+      var summary = root.querySelector('[data-settings-smoke-summary]');
+      var panel = root.querySelector('[data-settings-smoke-results]');
+      if (!panel) {
+        return;
+      }
+      var result = App.state.smokeChecks;
+      if (!result) {
+        if (summary) {
+          summary.textContent = 'No smoke checks have been run in this session yet.';
+        }
+        return;
+      }
+
+      if (summary) {
+        summary.textContent = (result.ok ? 'Latest run passed' : 'Latest run found issues') + ' at ' + formatDateTime_(result.ranAt);
+      }
+
+      panel.innerHTML = [
+        '<div class="text-xs uppercase tracking-[0.12em] font-medium text-on-surface-variant">Preview Diagnostics</div>',
+        '<div class="text-sm ' + (result.ok ? 'text-secondary' : 'text-error') + '">' +
+          escapeHtml_(result.ok ? 'Smoke checks passed. This preview is ready for manual verification.' : 'Smoke checks found issues. Review the failing checks before promoting live.') +
+        '</div>',
+        '<div class="space-y-3">',
+        (result.checks || [])
+          .map(function (check) {
+            return [
+              '<div class="rounded-lg px-4 py-3 ',
+              check.ok ? 'bg-secondary-container text-on-secondary-container' : 'bg-error-container text-on-error-container',
+              '">',
+              '<div class="flex items-center justify-between gap-3"><div class="font-medium">',
+              escapeHtml_(check.label || check.key || 'Check'),
+              '</div><div class="text-[10px] uppercase tracking-[0.12em]">',
+              escapeHtml_(check.skipped ? 'Skipped' : check.ok ? 'Passed' : 'Failed'),
+              '</div></div>',
+              '<div class="mt-1 text-sm">',
+              escapeHtml_(check.detail || ''),
+              '</div>',
+              '</div>',
+            ].join('');
+          })
+          .join(''),
+        '</div>',
+      ].join('');
+    }
+
     function renderPersonaSettingsGrid_(root, settings) {
       var grid = root.querySelector('[data-persona-settings-grid]');
       if (!grid) {
@@ -1939,6 +2076,14 @@
 
     function renderPersonaSettingsCard_(personaKey, settings) {
       var uploadState = (App.state.personaUploads && App.state.personaUploads[personaKey]) || {};
+      var hasStoredAvatar = !!(
+        settings &&
+        settings.personaProfiles &&
+        settings.personaProfiles[personaKey] &&
+        settings.personaProfiles[personaKey].hasAvatar
+      );
+      var storedAvatar =
+        App.state.personaAvatars && App.state.personaAvatars[personaKey] ? App.state.personaAvatars[personaKey].avatarDataUrl : '';
       var visual = getPersonaVisual_(personaKey, {
         displayName:
           settings &&
@@ -1951,18 +2096,13 @@
           ? uploadState.avatarDataUrl
           : uploadState.clearAvatar
             ? ''
-            : settings &&
-                settings.personaProfiles &&
-                settings.personaProfiles[personaKey] &&
-                settings.personaProfiles[personaKey].avatarDataUrl
-              ? settings.personaProfiles[personaKey].avatarDataUrl
-              : '',
+            : storedAvatar,
       });
       var avatarStatus = uploadState.avatarDataUrl
         ? 'New portrait ready. Save settings to make it live across the app.'
         : uploadState.clearAvatar
           ? 'Portrait will be removed when you save settings.'
-          : visual.hasAvatar
+          : hasStoredAvatar
             ? 'Current portrait is already live in the transcript and voice list.'
             : 'No portrait uploaded yet. The default initial badge will be used.';
       return [
@@ -2011,7 +2151,7 @@
         '<button type="button" data-action="clear-persona-avatar" data-persona-key="',
         escapeHtml_(personaKey),
         '" class="shrink-0 px-3 py-2 rounded-lg ghost-border text-on-surface-variant text-sm font-medium hover:bg-surface-container-high transition-all duration-200 ease-in-out">',
-        visual.hasAvatar || uploadState.avatarDataUrl ? 'Remove Portrait' : 'Use Initial',
+        hasStoredAvatar || uploadState.avatarDataUrl ? 'Remove Portrait' : 'Use Initial',
         '</button>',
         '</div>',
         '</div>',
@@ -2092,13 +2232,15 @@
           ? App.state.settings.personaProfiles[personaKey]
           : {};
       var uploadState = (App.state.personaUploads && App.state.personaUploads[personaKey]) || {};
+      var storedAvatar =
+        App.state.personaAvatars && App.state.personaAvatars[personaKey] ? App.state.personaAvatars[personaKey].avatarDataUrl : '';
       var visual = getPersonaVisual_(personaKey, {
         displayName: nameInput && nameInput.value ? nameInput.value : profile.displayName || personaKey,
         avatarDataUrl: uploadState.avatarDataUrl
           ? uploadState.avatarDataUrl
           : uploadState.clearAvatar
             ? ''
-            : profile.avatarDataUrl || '',
+            : storedAvatar,
       });
       var preview = card.querySelector('[data-persona-preview]');
       if (preview) {
@@ -2117,13 +2259,13 @@
           ? 'New portrait ready. Save settings to make it live across the app.'
           : uploadState.clearAvatar
             ? 'Portrait will be removed when you save settings.'
-            : visual.hasAvatar
+            : profile.hasAvatar
               ? 'Current portrait is already live in the transcript and voice list.'
               : 'No portrait uploaded yet. The default initial badge will be used.';
       }
       var clearButton = card.querySelector('[data-action="clear-persona-avatar"]');
       if (clearButton) {
-        clearButton.textContent = visual.hasAvatar || uploadState.avatarDataUrl ? 'Remove Portrait' : 'Use Initial';
+        clearButton.textContent = profile.hasAvatar || uploadState.avatarDataUrl ? 'Remove Portrait' : 'Use Initial';
       }
     }
 
@@ -3339,10 +3481,15 @@
       overrides = overrides || {};
       var base = PERSONA_META[personaKey] || PERSONA_META.Kai;
       var profiles = App.state.settings && App.state.settings.personaProfiles ? App.state.settings.personaProfiles : {};
+      var avatars = App.state.personaAvatars || {};
       var profile = profiles[personaKey] || {};
       var label = String(overrides.displayName || profile.displayName || personaKey || 'Roundtable').trim() || personaKey || 'Roundtable';
       var avatarDataUrl =
-        typeof overrides.avatarDataUrl === 'string' ? overrides.avatarDataUrl : profile.avatarDataUrl || '';
+        typeof overrides.avatarDataUrl === 'string'
+          ? overrides.avatarDataUrl
+          : avatars[personaKey] && avatars[personaKey].avatarDataUrl
+            ? avatars[personaKey].avatarDataUrl
+            : '';
       return {
         key: personaKey,
         label: label,
@@ -4002,8 +4149,46 @@
       }, 3200);
     }
 
-    function applyTheme_(isDark) {
-      document.documentElement.classList.toggle('dark', !!isDark);
+    function persistThemePreference_(preference) {
+      var normalized = normalizeThemePreferenceClient_(preference);
+      localStorage.setItem('rtos-theme-preference', normalized);
+      localStorage.setItem('rtos-theme', normalized);
+      document.documentElement.setAttribute('data-theme-preference', normalized);
+    }
+
+    function normalizeThemePreferenceClient_(preference) {
+      var normalized = String(preference || '').toLowerCase().trim();
+      if (normalized === 'dark' || normalized === 'light' || normalized === 'system') {
+        return normalized;
+      }
+      return 'system';
+    }
+
+    function resolveThemeDarkState_(preference) {
+      var normalized = normalizeThemePreferenceClient_(preference);
+      if (normalized === 'dark') {
+        return true;
+      }
+      if (normalized === 'light') {
+        return false;
+      }
+      return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+
+    function applyThemePreference_(preference) {
+      var normalized = normalizeThemePreferenceClient_(preference);
+      persistThemePreference_(normalized);
+      document.documentElement.classList.toggle('dark', resolveThemeDarkState_(normalized));
+    }
+
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+        var preference = normalizeThemePreferenceClient_(localStorage.getItem('rtos-theme-preference') || 'system');
+        if (preference === 'system') {
+          applyThemePreference_(preference);
+          renderShell_();
+        }
+      });
     }
 
     function renderMobileNavModal_() {

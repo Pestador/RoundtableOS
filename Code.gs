@@ -68,6 +68,7 @@ var SETTINGS_DEFAULTS = {
   avatarColor: 'primary',
   notificationsEnabled: 'true',
   dormantIdeaThreshold: '30',
+  themePreference: 'system',
   darkModeEnabled: 'false',
 };
 
@@ -122,68 +123,22 @@ function doGet(e) {
   var template = HtmlService.createTemplateFromFile('index');
   template.appTitle = APP_TITLE;
   template.initialPage = e && e.parameter && e.parameter.page ? e.parameter.page : 'dashboard';
-  return template
-    .evaluate()
-    .setTitle('Roundtable OS')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  return template.evaluate().setTitle('Roundtable OS');
 }
 
 function doPost(e) {
+  var payload = {};
   try {
-    var payload = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    var action = payload.action;
-    var args = payload.args || [];
-    var allowed = {
-      setupSpreadsheet: setupSpreadsheet,
-      addIdea: addIdea,
-      draftIdeaFromBrief: draftIdeaFromBrief,
-      expandIdeaBrief: expandIdeaBrief,
-      updateIdea: updateIdea,
-      getIdeas: getIdeas,
-      getIdeaById: getIdeaById,
-      archiveIdea: archiveIdea,
-      addResource: addResource,
-      updateResource: updateResource,
-      getResources: getResources,
-      createSession: createSession,
-      addSessionTurn: addSessionTurn,
-      getSessionsForIdea: getSessionsForIdea,
-      getSessionProgress: getSessionProgress,
-      getSessionHistory: getSessionHistory,
-      addTask: addTask,
-      updateTask: updateTask,
-      updateTaskStatus: updateTaskStatus,
-      getTasks: getTasks,
-      getDashboardData: getDashboardData,
-      getIdeaDetailBundle: getIdeaDetailBundle,
-      runBrainstormSession: runBrainstormSession,
-      runNextBrainstormTurn: runNextBrainstormTurn,
-      getSettings: getSettings,
-      saveSettings: saveSettings,
-      testLLMConnection: testLLMConnection,
-      clearAllSessions: clearAllSessions,
-      resetScores: resetScores,
-      deleteTask: deleteTask,
-      checkDormantIdeas: checkDormantIdeas,
-      checkOverdueTasks: checkOverdueTasks,
-      checkUnfinishedSessions: checkUnfinishedSessions,
-      installTriggers: installTriggers,
-    };
-    if (!allowed[action]) {
-      throw new Error('Unsupported action: ' + action);
-    }
-    var result = allowed[action].apply(null, args);
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, result: result })).setMimeType(
-      ContentService.MimeType.JSON
-    );
-  } catch (error) {
-    return ContentService.createTextOutput(
-      JSON.stringify({
-        ok: false,
-        error: error && error.message ? error.message : String(error),
-      })
-    ).setMimeType(ContentService.MimeType.JSON);
-  }
+    payload = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+  } catch (error) {}
+  return ContentService.createTextOutput(
+    JSON.stringify({
+      ok: false,
+      error:
+        'Public POST access is disabled for this app. Open the authenticated web app and use the built-in interface instead.',
+      requestedAction: payload.action || '',
+    })
+  ).setMimeType(ContentService.MimeType.JSON);
 }
 
 function setupSpreadsheet() {
@@ -200,11 +155,87 @@ function setupSpreadsheet() {
   applyColumnValidation_('Tasks', 'Status', TASK_STATUSES);
   applyFormats_();
 
-  return {
-    spreadsheetId: spreadsheet.getId(),
-    spreadsheetName: spreadsheet.getName(),
-    sheets: Object.keys(SHEET_CONFIG),
-  };
+  return getAppStatus();
+}
+
+function getAppStatus() {
+  return serializeRecord_(inspectAppStatus_());
+}
+
+function runSmokeChecks() {
+  var appStatus = inspectAppStatus_();
+  var checks = [];
+
+  checks.push({
+    key: 'appStatus',
+    label: 'Spreadsheet readiness',
+    ok: appStatus.ready,
+    detail: appStatus.message,
+  });
+
+  checks.push(runSmokeCheck_('settings', 'Settings load', function () {
+    var settings = getSettings();
+    return 'Provider ' + settings.activeLlmProvider + ' with theme ' + settings.themePreference + '.';
+  }));
+
+  if (!appStatus.ready) {
+    return serializeRecord_({
+      ok: false,
+      ranAt: new Date(),
+      appStatus: appStatus,
+      checks: checks,
+    });
+  }
+
+  var ideas = [];
+  checks.push(runSmokeCheck_('ideas', 'Ideas query', function () {
+    ideas = getIdeas({});
+    return ideas.length + ' idea(s) loaded.';
+  }));
+  checks.push(runSmokeCheck_('resources', 'Resources query', function () {
+    var resources = getResources({});
+    return resources.length + ' resource(s) loaded.';
+  }));
+  checks.push(runSmokeCheck_('tasks', 'Tasks query', function () {
+    var tasks = getTasks({});
+    return tasks.length + ' task(s) loaded.';
+  }));
+  checks.push(runSmokeCheck_('sessions', 'Session history query', function () {
+    var sessions = getSessionHistory({});
+    return sessions.length + ' session(s) loaded.';
+  }));
+  checks.push(runSmokeCheck_('dashboard', 'Dashboard read model', function () {
+    var dashboard = getDashboardData();
+    return (dashboard.topPriorities || []).length + ' priority card(s) ready.';
+  }));
+  checks.push(runSmokeCheck_('avatars', 'Persona avatar metadata', function () {
+    var avatars = getPersonaAvatars();
+    return Object.keys(avatars || {}).length + ' persona avatar record(s) loaded.';
+  }));
+
+  if (ideas.length) {
+    checks.push(runSmokeCheck_('ideaDetail', 'Idea detail bundle', function () {
+      var bundle = getIdeaDetailBundle(ideas[0].ID);
+      return 'Detail bundle loaded for "' + (bundle.idea && bundle.idea.Name ? bundle.idea.Name : 'idea') + '".';
+    }));
+  } else {
+    checks.push({
+      key: 'ideaDetail',
+      label: 'Idea detail bundle',
+      ok: true,
+      skipped: true,
+      detail: 'Skipped because there are no ideas yet.',
+    });
+  }
+
+  return serializeRecord_({
+    ok: checks.every(function (check) {
+      return !!check.ok;
+    }),
+    ranAt: new Date(),
+    appStatus: appStatus,
+    checks: checks,
+  });
 }
 
 function addIdea(data) {
@@ -538,6 +569,7 @@ function getIdeaDetailBundle(id) {
 function getSettings() {
   var properties = PropertiesService.getScriptProperties();
   var activeProvider = getStoredActiveProvider_(properties);
+  var spreadsheetInfo = getSpreadsheetIdentity_();
   var settings = {
     activeLlmProvider: activeProvider,
     deepSeekModel: getStoredProviderModel_(properties, 'deepseek'),
@@ -552,7 +584,7 @@ function getSettings() {
       properties.getProperty('notificationsEnabled') || SETTINGS_DEFAULTS.notificationsEnabled,
     dormantIdeaThreshold:
       properties.getProperty('dormantIdeaThreshold') || SETTINGS_DEFAULTS.dormantIdeaThreshold,
-    darkModeEnabled: properties.getProperty('darkModeEnabled') || SETTINGS_DEFAULTS.darkModeEnabled,
+    themePreference: getStoredThemePreference_(properties),
   };
 
   settings.hasDeepSeekApiKey = !!getStoredProviderApiKey_(properties, 'deepseek');
@@ -570,10 +602,29 @@ function getSettings() {
   settings.llmProvider = settings.activeLlmProvider;
   settings.llmModel = getStoredProviderModel_(properties, activeProvider);
   settings.providers = buildProviderSettingsSummary_(properties);
-  settings.spreadsheetId = properties.getProperty('SPREADSHEET_ID') || getSpreadsheet_().getId();
-  settings.personaProfiles = getStoredPersonaProfiles_(properties, { includeAvatarData: true });
+  settings.spreadsheetId = spreadsheetInfo.id;
+  settings.spreadsheetName = spreadsheetInfo.name;
+  settings.darkModeEnabled = settings.themePreference === 'dark' ? 'true' : 'false';
+  settings.personaProfiles = getStoredPersonaProfiles_(properties, { includeAvatarData: false });
 
   return serializeRecord_(settings);
+}
+
+function getPersonaAvatars() {
+  var profiles = getStoredPersonaProfiles_(PropertiesService.getScriptProperties(), { includeAvatarData: false });
+  var avatars = {};
+
+  Object.keys(profiles).forEach(function (key) {
+    var profile = profiles[key];
+    var avatarDataUrl = profile.avatarFileId ? readPersonaAvatarDataUrl_(profile.avatarFileId) : '';
+    avatars[key] = {
+      key: key,
+      hasAvatar: !!avatarDataUrl,
+      avatarDataUrl: avatarDataUrl,
+    };
+  });
+
+  return serializeRecord_(avatars);
 }
 
 function saveSettings(data) {
@@ -611,12 +662,21 @@ function saveSettings(data) {
     'avatarColor',
     'notificationsEnabled',
     'dormantIdeaThreshold',
-    'darkModeEnabled',
   ].forEach(function (key) {
     if (Object.prototype.hasOwnProperty.call(data, key)) {
       properties.setProperty(key, String(data[key]));
     }
   });
+
+  if (Object.prototype.hasOwnProperty.call(data, 'themePreference')) {
+    var themePreference = normalizeThemePreference_(data.themePreference);
+    properties.setProperty('themePreference', themePreference);
+    properties.setProperty('darkModeEnabled', themePreference === 'dark' ? 'true' : 'false');
+  } else if (Object.prototype.hasOwnProperty.call(data, 'darkModeEnabled')) {
+    var legacyThemePreference = String(data.darkModeEnabled) === 'true' ? 'dark' : 'light';
+    properties.setProperty('themePreference', legacyThemePreference);
+    properties.setProperty('darkModeEnabled', legacyThemePreference === 'dark' ? 'true' : 'false');
+  }
 
   properties.setProperty('llmModel', getStoredProviderModel_(properties, activeProvider));
   properties.setProperty('LLM_MODEL', getStoredProviderModel_(properties, activeProvider));
@@ -657,6 +717,29 @@ function normalizeProviderName_(provider) {
     return 'gemini';
   }
   return SETTINGS_DEFAULTS.activeLlmProvider;
+}
+
+function normalizeThemePreference_(value) {
+  var normalized = String(value || '').toLowerCase().trim();
+  if (normalized === 'dark' || normalized === 'light' || normalized === 'system') {
+    return normalized;
+  }
+  return SETTINGS_DEFAULTS.themePreference;
+}
+
+function getStoredThemePreference_(properties) {
+  var stored = normalizeThemePreference_(properties.getProperty('themePreference'));
+  if (stored !== SETTINGS_DEFAULTS.themePreference || properties.getProperty('themePreference')) {
+    return stored;
+  }
+
+  if (properties.getProperty('darkModeEnabled') === 'true') {
+    return 'dark';
+  }
+  if (properties.getProperty('darkModeEnabled') === 'false') {
+    return 'light';
+  }
+  return SETTINGS_DEFAULTS.themePreference;
 }
 
 function getProviderConfig_(provider) {
@@ -1148,6 +1231,146 @@ function getSpreadsheet_() {
   }
 
   throw new Error('No spreadsheet is linked. Set SPREADSHEET_ID or bind this script to a spreadsheet.');
+}
+
+function getSpreadsheetIdentity_() {
+  try {
+    var spreadsheet = getSpreadsheet_();
+    return {
+      id: spreadsheet.getId(),
+      name: spreadsheet.getName(),
+    };
+  } catch (error) {
+    return {
+      id: '',
+      name: '',
+    };
+  }
+}
+
+function inspectAppStatus_() {
+  var status = {
+    ready: false,
+    spreadsheetId: '',
+    spreadsheetName: '',
+    missingSheets: [],
+    headerIssues: [],
+    validationIssues: [],
+    message: '',
+  };
+
+  try {
+    var spreadsheet = getSpreadsheet_();
+    status.spreadsheetId = spreadsheet.getId();
+    status.spreadsheetName = spreadsheet.getName();
+
+    Object.keys(SHEET_CONFIG).forEach(function (sheetName) {
+      var headers = SHEET_CONFIG[sheetName].headers;
+      var sheet = spreadsheet.getSheetByName(sheetName);
+      if (!sheet) {
+        status.missingSheets.push(sheetName);
+        return;
+      }
+
+      var actualHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0].map(function (value) {
+        return String(value || '').trim();
+      });
+      if (actualHeaders.join('|') !== headers.join('|')) {
+        status.headerIssues.push({
+          sheet: sheetName,
+          expected: headers.join(' | '),
+          actual: actualHeaders.join(' | '),
+        });
+      }
+    });
+
+    status.validationIssues = collectValidationIssues_(spreadsheet);
+    status.ready =
+      !status.missingSheets.length &&
+      !status.headerIssues.length &&
+      !status.validationIssues.length;
+
+    if (status.ready) {
+      status.message = 'The spreadsheet schema, headers, and validations are ready.';
+    } else {
+      var issues = [];
+      if (status.missingSheets.length) {
+        issues.push('missing sheets: ' + status.missingSheets.join(', '));
+      }
+      if (status.headerIssues.length) {
+        issues.push('header mismatches: ' + status.headerIssues.map(function (issue) { return issue.sheet; }).join(', '));
+      }
+      if (status.validationIssues.length) {
+        issues.push('validation drift: ' + status.validationIssues.map(function (issue) { return issue.sheet + '.' + issue.column; }).join(', '));
+      }
+      status.message = 'The workspace needs setup or repair: ' + issues.join('; ') + '.';
+    }
+  } catch (error) {
+    status.message = error && error.message ? error.message : String(error);
+  }
+
+  return status;
+}
+
+function collectValidationIssues_(spreadsheet) {
+  var validations = [
+    { sheet: 'Ideas', column: 'Stage', allowedValues: IDEA_STAGES },
+    { sheet: 'Resources', column: 'Status', allowedValues: RESOURCE_STATUSES },
+    { sheet: 'Tasks', column: 'Status', allowedValues: TASK_STATUSES },
+  ];
+
+  return validations.reduce(function (issues, validation) {
+    var sheet = spreadsheet.getSheetByName(validation.sheet);
+    if (!sheet) {
+      return issues;
+    }
+
+    var columnIndex = getColumnIndex_(validation.sheet, validation.column);
+    var rule = sheet.getRange(2, columnIndex).getDataValidation();
+    if (!rule) {
+      issues.push({
+        sheet: validation.sheet,
+        column: validation.column,
+      });
+      return issues;
+    }
+
+    if (rule.getCriteriaType() !== SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST) {
+      issues.push({
+        sheet: validation.sheet,
+        column: validation.column,
+      });
+      return issues;
+    }
+
+    var criteriaValues = rule.getCriteriaValues();
+    var allowed = criteriaValues && criteriaValues[0] ? criteriaValues[0].map(String) : [];
+    if (allowed.join('|') !== validation.allowedValues.join('|')) {
+      issues.push({
+        sheet: validation.sheet,
+        column: validation.column,
+      });
+    }
+    return issues;
+  }, []);
+}
+
+function runSmokeCheck_(key, label, callback) {
+  try {
+    return {
+      key: key,
+      label: label,
+      ok: true,
+      detail: callback(),
+    };
+  } catch (error) {
+    return {
+      key: key,
+      label: label,
+      ok: false,
+      detail: error && error.message ? error.message : String(error),
+    };
+  }
 }
 
 function getColumnIndex_(sheetName, columnName) {

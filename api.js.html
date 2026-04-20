@@ -40,8 +40,14 @@
 
     return {
       invoke: invoke,
+      getAppStatus: function () {
+        return invoke('getAppStatus');
+      },
       setupSpreadsheet: function () {
         return invoke('setupSpreadsheet');
+      },
+      runSmokeChecks: function () {
+        return invoke('runSmokeChecks');
       },
       getDashboardData: function () {
         return invoke('getDashboardData');
@@ -97,8 +103,8 @@
       createSession: function (ideaId, mode) {
         return invoke('createSession', ideaId, mode);
       },
-      runNextBrainstormTurn: function (sessionId, ideaId, mode, turnIndex) {
-        return invoke('runNextBrainstormTurn', sessionId, ideaId, mode, turnIndex);
+      runNextBrainstormTurn: function (sessionId, turnIndex) {
+        return invoke('runNextBrainstormTurn', sessionId, turnIndex);
       },
       getSessionProgress: function (sessionId) {
         return invoke('getSessionProgress', sessionId);
@@ -108,6 +114,9 @@
       },
       getSettings: function () {
         return invoke('getSettings');
+      },
+      getPersonaAvatars: function () {
+        return invoke('getPersonaAvatars');
       },
       saveSettings: function (data) {
         return invoke('saveSettings', data);

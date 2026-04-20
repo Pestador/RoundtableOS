@@ -16,31 +16,34 @@ Roundtable OS Lightweight is a Google Sheets + Google Apps Script idea managemen
 - `appsscript.json` - Apps Script manifest
 - `scripts/validate-app.ps1` - local syntax and manifest validation before any push
 - `scripts/push-app-source.ps1` - push local source into the bound Apps Script project without changing the live web app
-- `scripts/redeploy-webapp.ps1` - push, version, and redeploy a specific Apps Script web app deployment
+- `scripts/redeploy-webapp.ps1` - create a new version and update a specific deployment, or point a deployment at an existing validated version
+- `scripts/save-and-deploy.ps1` - one-command preview deployment flow that validates, deploys preview, and only then saves the validated snapshot to GitHub
+- `scripts/promote-live.ps1` - promote the last preview-tested version to the live deployment without creating a new version
 
-## Safe Update Workflow
+## Preview-First Update Workflow
 
 Use this loop so the live deployment is never your first test:
 
 1. Make the code changes locally in this workspace.
-2. Run local validation:
-   - `powershell -ExecutionPolicy Bypass -File .\scripts\validate-app.ps1`
-3. Push source only into Apps Script when validation is clean:
-   - `powershell -ExecutionPolicy Bypass -File .\scripts\push-app-source.ps1`
-4. Test in the bound Apps Script project or a non-production deployment.
-5. Only after that, redeploy the live web app:
-   - `powershell -ExecutionPolicy Bypass -File .\scripts\redeploy-webapp.ps1 -DeploymentId "<your deployment id>" -Description "Short release note"`
+2. Deploy the preview build first:
+   - `powershell -ExecutionPolicy Bypass -File .\scripts\save-and-deploy.ps1 -CommitMessage "short message" -PreviewDeploymentId "<preview deployment id>" -ReleaseNote "short release note"`
+3. Open the preview deployment and run `Run Smoke Checks` from the `Settings` page.
+4. Manually verify the key interactive flows in preview:
+   - create or edit an idea
+   - open the idea drawer and detail route
+   - run a brainstorm
+   - save settings
+   - switch theme preference
+5. Only after preview is healthy, promote that validated version live:
+   - `powershell -ExecutionPolicy Bypass -File .\scripts\promote-live.ps1 -LiveDeploymentId "<live deployment id>" -ReleaseNote "promote validated preview"`
 
 The important distinction is:
 
-- `push-app-source.ps1` updates the project source
-- `redeploy-webapp.ps1` changes what the live site serves
+- `push-app-source.ps1` updates the bound Apps Script project source without changing a deployment
+- `save-and-deploy.ps1` updates the preview deployment and stores the validated version number
+- `promote-live.ps1` points the live deployment at that already-tested version
 
-If you want one command instead of the full sequence, use:
-
-- `powershell -ExecutionPolicy Bypass -File .\scripts\save-and-deploy.ps1 -CommitMessage "short message" -DeploymentId "<your deployment id>" -ReleaseNote "short release note"`
-
-That wrapper runs validation, git save/push, Apps Script source push, and live redeploy in one pass.
+The file `.last-preview-deploy.json` is written locally after each preview deploy so the live promotion step knows which version was tested.
 
 ## Git And GitHub Setup
 
@@ -70,8 +73,8 @@ Recommended day-to-day flow:
 3. Run `.\scripts\validate-app.ps1`
 4. Commit locally
 5. Push the feature branch to GitHub
-6. Merge into `main` only when the change is validated
-7. Redeploy the live Apps Script deployment from that known-good state
+6. Merge into `main` only when the preview deployment is validated
+7. Promote the preview-tested version to the live Apps Script deployment
 
 ## 1. Create the Spreadsheet
 
@@ -139,6 +142,8 @@ The `Sessions` schema used by this build is:
 
 `SessionID | IdeaID | Turn | Agent | Content | Timestamp`
 
+After setup, the app can also detect drift later through `getAppStatus()` and repair it from `Settings > Workspace Health`.
+
 ## 4. Configure Script Properties
 
 Open `Project Settings > Script Properties` and add the active-provider fields plus whichever provider keys you want available:
@@ -194,9 +199,15 @@ This installs daily time-driven triggers for:
 2. Choose `Web app`.
 3. Set:
    - `Execute as`: `Me`
-   - `Who has access`: `Anyone with the link` or the narrower option your workspace needs
+   - `Who has access`: `Anyone with Google account`
 4. Deploy.
 5. Open the deployment URL.
+
+Recommended deployment setup:
+
+1. Create one deployment for preview testing.
+2. Create a second deployment for the live site.
+3. Keep both deployment IDs handy for the preview and live scripts.
 
 The app is a single-page interface with these routes:
 
@@ -213,10 +224,26 @@ The app is a single-page interface with these routes:
 ## 7. First-Use Walkthrough
 
 1. Open `Settings` and confirm the active provider, per-provider models, user name, and email.
+2. Choose your theme preference (`Follow system`, `Light`, or `Dark`).
 2. Enter the selected provider key and use `Test Selected Provider` to verify the connection.
-3. Create a first idea from `New Spark`.
-4. Open the idea detail page and launch a brainstorm.
-5. Add at least one resource and one task to confirm the linked flows work.
+3. Run `Workspace Health` and confirm the sheet setup is ready.
+4. Run `Run Smoke Checks` once to confirm the main read models are healthy.
+5. Create a first idea from `New Spark`.
+6. Open the idea detail page and launch a brainstorm.
+7. Add at least one resource and one task to confirm the linked flows work.
+
+## Common Failures
+
+- Missing API key:
+  - The `Settings` page will show which provider is missing a stored key. Add the key there and rerun `Test Selected Provider`.
+- Sheet header mismatch or missing tab:
+  - Open `Settings` and use `Run Setup / Repair`.
+- Preview smoke checks fail:
+  - Do not promote live. Fix the failing check, preview deploy again, and rerun smoke checks.
+- Apps Script auth or clasp issues:
+  - Reconnect the local clasp auth and confirm both `.clasp.json` and `.clasprc-live.json` are present.
+- Trigger drift:
+  - Use `Install Daily Triggers` from `Settings` or rerun `installTriggers()` directly in Apps Script.
 
 ## Data Model Summary
 
@@ -241,7 +268,7 @@ The app is a single-page interface with these routes:
 The live brainstorming flow is progressive:
 
 1. `createSession(ideaId, mode)` creates a unique session
-2. The client calls `runNextBrainstormTurn(sessionId, ideaId, mode, turnIndex)` once per persona
+2. The client calls `runNextBrainstormTurn(sessionId, turnIndex)` once per persona
 3. Each turn is written to the `Sessions` sheet immediately
 4. After the last persona turn, synthesis is generated and appended
 5. The idea's `PriorityScore`, `NextAction`, and `LastBrainstormed` values are updated
@@ -267,7 +294,7 @@ The client-side app relies on `google.script.run`, so the UI is meant to run ins
 ### Spreadsheet header mismatch
 
 - Symptom: CRUD functions throw missing column or missing sheet errors
-- Fix: run `setupSpreadsheet()` again to normalize headers and validations
+- Fix: open `Settings` and use `Run Setup / Repair`, or run `setupSpreadsheet()` again directly
 
 ### LLM API errors or quota failures
 
@@ -292,10 +319,13 @@ The client-side app relies on `google.script.run`, so the UI is meant to run ins
 ## Verification Checklist
 
 - `setupSpreadsheet()` runs successfully on a blank bound spreadsheet
+- `Settings > Workspace Health` reports a ready schema after setup
+- `Settings > Run Smoke Checks` passes on the preview deployment
 - `Settings > Test Selected Provider` succeeds with valid credentials
 - Creating an idea appends a row to `Ideas`
 - Creating a resource appends a row to `Resources`
 - Creating and moving tasks updates the `Tasks` sheet
 - Brainstorm turns append one row at a time to `Sessions`
 - Final synthesis updates the linked idea score and next action
+- Theme preference persists across refreshes and dark mode fully changes the major surfaces
 - Reminder functions run manually without throwing errors
