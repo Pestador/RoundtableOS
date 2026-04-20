@@ -1,0 +1,88 @@
+<template id="template-ideas">
+  <section class="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto w-full space-y-8">
+    <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+      <div>
+        <h1 class="font-headline text-4xl font-extrabold tracking-tight">Idea Bank</h1>
+        <p class="text-on-surface-variant text-lg mt-2">
+          Track sparks from inbox to launch, and move fluidly between list and pipeline views.
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          data-action="refresh-route"
+          class="px-4 py-2.5 rounded-lg ghost-border text-primary font-medium hover:bg-surface-container-low transition-all duration-200 ease-in-out"
+        >
+          Refresh
+        </button>
+        <button
+          type="button"
+          data-nav="#ideas/new"
+          class="px-5 py-2.5 rounded-lg bg-gradient-primary text-on-primary ambient-shadow font-medium hover:opacity-90 transition-all duration-200 ease-in-out"
+        >
+          New Spark
+        </button>
+      </div>
+    </header>
+
+    <div class="editorial-card p-5 space-y-5">
+      <div
+        class="flex flex-wrap gap-2"
+        data-idea-stage-filters
+      ></div>
+      <div class="flex flex-col xl:flex-row gap-4 xl:items-center xl:justify-between">
+        <div class="flex flex-col sm:flex-row gap-3 flex-1">
+          <label class="relative flex-1">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
+            <input
+              type="search"
+              data-ideas-search
+              class="w-full bg-surface-container-highest rounded-full pl-10 pr-4 py-2.5 text-sm text-on-surface placeholder:text-outline focus-ring"
+              placeholder="Search ideas, categories, or tags..."
+            />
+          </label>
+          <select
+            data-ideas-sort
+            class="bg-surface-container-highest rounded-lg px-4 py-2.5 text-sm text-on-surface focus-ring"
+          >
+            <option value="PriorityScore">Sort: Priority score</option>
+            <option value="LastBrainstormed">Sort: Last brainstormed</option>
+            <option value="Name">Sort: Name</option>
+          </select>
+        </div>
+
+        <div class="inline-flex bg-surface-container-highest rounded-lg p-1">
+          <button
+            type="button"
+            data-ideas-view="list"
+            class="px-4 py-2 rounded-md text-sm font-medium text-primary bg-surface-container-lowest shadow-sm"
+          >
+            List view
+          </button>
+          <button
+            type="button"
+            data-ideas-view="kanban"
+            class="px-4 py-2 rounded-md text-sm font-medium text-on-surface-variant hover:text-on-surface transition-all duration-200 ease-in-out"
+          >
+            Kanban view
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      data-ideas-empty
+      class="hidden editorial-card p-10 text-center space-y-4"
+    ></div>
+
+    <div
+      data-ideas-list-view
+      class="space-y-8"
+    ></div>
+
+    <div
+      data-ideas-kanban-view
+      class="hidden overflow-x-auto hide-scrollbar"
+    ></div>
+  </section>
+</template>

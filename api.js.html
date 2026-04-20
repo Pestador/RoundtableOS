@@ -1,0 +1,126 @@
+<script>
+  window.AppApi = (function () {
+    function normalizeError(error) {
+      if (!error) {
+        return new Error('Unknown error');
+      }
+      if (error instanceof Error) {
+        return error;
+      }
+      if (typeof error === 'string') {
+        return new Error(error);
+      }
+      if (error.message) {
+        return new Error(error.message);
+      }
+      return new Error(JSON.stringify(error));
+    }
+
+    function invoke(functionName) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      return new Promise(function (resolve, reject) {
+        if (!(window.google && google.script && google.script.run)) {
+          reject(
+            new Error(
+              'The Apps Script runtime is not available in this context. Deploy the project as a web app or use the Apps Script preview.'
+            )
+          );
+          return;
+        }
+
+        var runner = google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(function (error) {
+            reject(normalizeError(error));
+          });
+
+        runner[functionName].apply(null, args);
+      });
+    }
+
+    return {
+      invoke: invoke,
+      setupSpreadsheet: function () {
+        return invoke('setupSpreadsheet');
+      },
+      getDashboardData: function () {
+        return invoke('getDashboardData');
+      },
+      getIdeas: function (filters) {
+        return invoke('getIdeas', filters || {});
+      },
+      getIdeaById: function (id) {
+        return invoke('getIdeaById', id);
+      },
+      getIdeaDetailBundle: function (id) {
+        return invoke('getIdeaDetailBundle', id);
+      },
+      addIdea: function (data) {
+        return invoke('addIdea', data);
+      },
+      draftIdeaFromBrief: function (brief, options) {
+        return invoke('draftIdeaFromBrief', brief, options || {});
+      },
+      updateIdea: function (id, data) {
+        return invoke('updateIdea', id, data);
+      },
+      archiveIdea: function (id) {
+        return invoke('archiveIdea', id);
+      },
+      getResources: function (filters) {
+        return invoke('getResources', filters || {});
+      },
+      addResource: function (data) {
+        return invoke('addResource', data);
+      },
+      updateResource: function (id, data) {
+        return invoke('updateResource', id, data);
+      },
+      getTasks: function (filters) {
+        return invoke('getTasks', filters || {});
+      },
+      addTask: function (data) {
+        return invoke('addTask', data);
+      },
+      updateTask: function (id, data) {
+        return invoke('updateTask', id, data);
+      },
+      updateTaskStatus: function (id, status) {
+        return invoke('updateTaskStatus', id, status);
+      },
+      deleteTask: function (id) {
+        return invoke('deleteTask', id);
+      },
+      createSession: function (ideaId, mode) {
+        return invoke('createSession', ideaId, mode);
+      },
+      runNextBrainstormTurn: function (sessionId, ideaId, mode, turnIndex) {
+        return invoke('runNextBrainstormTurn', sessionId, ideaId, mode, turnIndex);
+      },
+      getSessionProgress: function (sessionId) {
+        return invoke('getSessionProgress', sessionId);
+      },
+      getSessionHistory: function (filters) {
+        return invoke('getSessionHistory', filters || {});
+      },
+      getSettings: function () {
+        return invoke('getSettings');
+      },
+      saveSettings: function (data) {
+        return invoke('saveSettings', data);
+      },
+      testLLMConnection: function (data) {
+        return invoke('testLLMConnection', data || {});
+      },
+      clearAllSessions: function () {
+        return invoke('clearAllSessions');
+      },
+      resetScores: function () {
+        return invoke('resetScores');
+      },
+      installTriggers: function () {
+        return invoke('installTriggers');
+      },
+    };
+  })();
+</script>

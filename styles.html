@@ -1,0 +1,277 @@
+<link
+  rel="preconnect"
+  href="https://fonts.googleapis.com"
+/>
+<link
+  rel="preconnect"
+  href="https://fonts.gstatic.com"
+  crossorigin
+/>
+<link
+  href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Inter:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+<link
+  href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+  rel="stylesheet"
+/>
+<script>
+  (function () {
+    try {
+      if (localStorage.getItem('rtos-theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (error) {}
+  })();
+</script>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          'tertiary-container': '#c7abff',
+          'on-error-container': '#68001f',
+          'surface-tint': '#5148d8',
+          'surface-container': '#eaeef1',
+          'on-secondary-fixed': '#004e47',
+          'primary-fixed-dim': '#aeabff',
+          'primary-container': '#bdbaff',
+          surface: '#f7f9fb',
+          'on-secondary-fixed-variant': '#006d64',
+          'on-primary': '#fbf7ff',
+          'surface-container-highest': '#dde3e7',
+          'error-dim': '#770326',
+          'on-tertiary-container': '#46009d',
+          'on-tertiary': '#fdf7ff',
+          'secondary-fixed': '#91feef',
+          'surface-container-low': '#f1f4f6',
+          outline: '#757c7f',
+          primary: '#5148d8',
+          'surface-bright': '#f7f9fb',
+          'tertiary-dim': '#681ad9',
+          'primary-dim': '#453acc',
+          'error-container': '#f76a80',
+          'on-surface-variant': '#596063',
+          'on-surface': '#2d3337',
+          'secondary-dim': '#005e56',
+          'tertiary-fixed': '#c7abff',
+          'on-tertiary-fixed': '#2b0066',
+          tertiary: '#742fe5',
+          'on-primary-fixed-variant': '#3628be',
+          'inverse-on-surface': '#9a9d9f',
+          'on-secondary-container': '#006259',
+          secondary: '#006b62',
+          'surface-variant': '#dde3e7',
+          'on-primary-container': '#2c18b6',
+          error: '#ac3149',
+          background: '#f7f9fb',
+          'on-error': '#fff7f7',
+          'primary-fixed': '#bdbaff',
+          'on-background': '#2d3337',
+          'surface-container-lowest': '#ffffff',
+          'on-secondary': '#e2fff9',
+          'surface-dim': '#d3dbdf',
+          'outline-variant': '#acb3b7',
+          'surface-container-high': '#e3e9ec',
+          'inverse-surface': '#0b0f10',
+          'tertiary-fixed-dim': '#bb9aff',
+          'secondary-container': '#91feef',
+          'on-primary-fixed': '#19008c',
+          'secondary-fixed-dim': '#83efe1',
+          'on-tertiary-fixed-variant': '#5100b3',
+          'inverse-primary': '#8681ff',
+        },
+        borderRadius: {
+          DEFAULT: '0.125rem',
+          lg: '0.25rem',
+          xl: '0.5rem',
+          full: '0.75rem',
+        },
+        spacing: {},
+        fontFamily: {
+          headline: ['Manrope'],
+          body: ['Inter'],
+          label: ['Inter'],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .font-headline {
+    font-family: 'Manrope', sans-serif;
+  }
+
+  .glass-panel {
+    background: rgba(247, 249, 251, 0.72);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, #5148d8 0%, #453acc 100%);
+  }
+
+  .ambient-shadow {
+    box-shadow: 0px 12px 32px rgba(45, 51, 55, 0.06);
+  }
+
+  .ghost-border {
+    border: 1px solid rgba(172, 179, 183, 0.15);
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .material-symbols-outlined.fill {
+    font-variation-settings: 'FILL' 1;
+  }
+
+  .editorial-card {
+    border-radius: 0.5rem;
+    background: #ffffff;
+    box-shadow: 0px 12px 32px rgba(45, 51, 55, 0.06);
+  }
+
+  .focus-ring {
+    outline: none;
+    transition: all 200ms ease-in-out;
+  }
+
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 2px rgba(81, 72, 216, 0.18);
+    border-color: rgba(81, 72, 216, 0.45);
+  }
+
+  .drawer-panel {
+    transform: translateX(100%);
+    transition: transform 200ms ease-in-out;
+  }
+
+  .drawer-panel.open {
+    transform: translateX(0);
+  }
+
+  .route-fade {
+    animation: route-fade 180ms ease-in-out;
+  }
+
+  .avatar-pulse {
+    position: relative;
+  }
+
+  .avatar-pulse::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 999px;
+    border: 1px solid rgba(81, 72, 216, 0.18);
+    animation: avatar-pulse 1.8s ease-out infinite;
+  }
+
+  .thinking-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .thinking-dots span {
+    width: 0.38rem;
+    height: 0.38rem;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.28;
+    animation: thinking-dot 1.2s ease-in-out infinite;
+  }
+
+  .thinking-dots span:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  .thinking-dots span:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+
+  .typewriter-cursor {
+    display: inline-block;
+    width: 0.08em;
+    height: 1.05em;
+    margin-left: 0.12em;
+    vertical-align: -0.12em;
+    background: currentColor;
+    animation: typewriter-blink 0.95s steps(1, end) infinite;
+  }
+
+  @keyframes route-fade {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes avatar-pulse {
+    0% {
+      transform: scale(0.96);
+      opacity: 0.45;
+    }
+    70% {
+      transform: scale(1.12);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1.12);
+      opacity: 0;
+    }
+  }
+
+  @keyframes thinking-dot {
+    0%,
+    80%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.28;
+    }
+    40% {
+      transform: translateY(-2px);
+      opacity: 0.95;
+    }
+  }
+
+  @keyframes typewriter-blink {
+    0%,
+    49% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+</style>

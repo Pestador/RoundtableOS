@@ -1,0 +1,3970 @@
+<script>
+  (function () {
+    var NAV_ITEMS = [
+      { key: 'dashboard', label: 'Dashboard', icon: 'dashboard', hash: '#dashboard' },
+      { key: 'ideas', label: 'Ideas', icon: 'lightbulb', hash: '#ideas' },
+      { key: 'brainstorm', label: 'Brainstorming', icon: 'psychology', hash: '#brainstorm' },
+      { key: 'resources', label: 'Resource Vault', icon: 'inventory_2', hash: '#resources' },
+      { key: 'tasks', label: 'Task Manager', icon: 'checklist', hash: '#tasks' },
+      { key: 'settings', label: 'Settings', icon: 'settings', hash: '#settings' },
+    ];
+
+    var IDEA_STAGES = [
+      'Inbox',
+      'Spark',
+      'Exploring',
+      'Validating',
+      'Planned',
+      'Building',
+      'Launched',
+      'Paused',
+      'Archived',
+      'Killed',
+    ];
+
+    var TASK_COLUMNS = ['Todo', 'InProgress', 'Blocked', 'Done'];
+    var RESOURCE_TYPES = ['All Items', 'App', 'AI Model', 'Book', 'Video', 'Dataset', 'Tool', 'Documentation', 'Design Asset'];
+    var RESOURCE_STATUSES = ['All Statuses', 'Saved', 'Tested', 'Useful', 'Revisit', 'Deprecated'];
+    var SETTINGS_PROVIDER_META = {
+      deepseek: { label: 'DeepSeek', keyStatusField: 'hasDeepSeekApiKey' },
+      gemini: { label: 'Gemini', keyStatusField: 'hasGeminiApiKey' },
+      openrouter: { label: 'OpenRouter', keyStatusField: 'hasOpenRouterApiKey' },
+      openai: { label: 'OpenAI', keyStatusField: 'hasOpenAiApiKey' },
+      anthropic: { label: 'Anthropic', keyStatusField: 'hasAnthropicApiKey' },
+    };
+
+    var TASK_STATUS_LABELS = {
+      Todo: 'Todo',
+      InProgress: 'In Progress',
+      Blocked: 'Blocked',
+      Done: 'Done',
+    };
+
+    var STAGE_META = {
+      Inbox: {
+        badge: 'bg-surface-container-highest text-on-surface-variant',
+        accent: 'bg-surface-container-highest',
+      },
+      Spark: {
+        badge: 'bg-primary-container text-on-primary-container',
+        accent: 'bg-primary',
+      },
+      Exploring: {
+        badge: 'bg-secondary-container text-on-secondary-container',
+        accent: 'bg-secondary',
+      },
+      Validating: {
+        badge: 'bg-tertiary-container text-on-tertiary-container',
+        accent: 'bg-secondary',
+      },
+      Planned: {
+        badge: 'bg-primary-container text-primary',
+        accent: 'bg-tertiary',
+      },
+      Building: {
+        badge: 'bg-primary-container text-on-primary-container',
+        accent: 'bg-primary',
+      },
+      Launched: {
+        badge: 'bg-secondary-container text-secondary',
+        accent: 'bg-secondary',
+      },
+      Paused: {
+        badge: 'bg-surface-container-high text-outline',
+        accent: 'bg-surface-container-high',
+      },
+      Archived: {
+        badge: 'bg-surface-container-highest text-on-surface-variant',
+        accent: 'bg-surface-container-highest',
+      },
+      Killed: {
+        badge: 'bg-error-container text-on-error-container',
+        accent: 'bg-error',
+      },
+    };
+
+    var PERSONA_META = {
+      Kai: { initial: 'K', role: 'Visionary', line: 'bg-primary', pill: 'bg-primary text-on-primary', text: 'text-primary' },
+      Nova: { initial: 'N', role: 'Strategist', line: 'bg-secondary', pill: 'bg-secondary text-on-secondary', text: 'text-secondary' },
+      Rex: { initial: 'R', role: 'Builder', line: 'bg-tertiary', pill: 'bg-tertiary text-on-tertiary', text: 'text-tertiary' },
+      Sage: { initial: 'S', role: 'Critic', line: 'bg-error', pill: 'bg-error text-on-error', text: 'text-error' },
+      Luna: {
+        initial: 'L',
+        role: 'User Advocate',
+        line: 'bg-primary-container',
+        pill: 'bg-primary-container text-on-primary-container',
+        text: 'text-on-primary-container',
+      },
+      Nia: {
+        initial: 'N',
+        role: 'Execution Controller',
+        line: 'bg-outline',
+        pill: 'bg-outline-variant text-on-surface',
+        text: 'text-on-surface-variant',
+      },
+      Synthesis: {
+        initial: 'Σ',
+        role: 'Synthesis',
+        line: 'bg-primary',
+        pill: 'bg-primary-container text-on-primary-container',
+        text: 'text-primary',
+      },
+    };
+
+    var BRAINSTORM_MODES = {
+      'Full Roundtable': {
+        personas: ['Kai', 'Nova', 'Rex', 'Sage', 'Luna', 'Nia'],
+        description: 'All six personas weigh in sequentially for the most complete view.',
+      },
+      'Quick Spark': {
+        personas: ['Kai', 'Rex'],
+        description: 'A fast pass for creative direction plus practical build thinking.',
+      },
+      'Challenge Mode': {
+        personas: ['Sage', 'Luna'],
+        description: 'Pressure-test the idea through critique and user empathy.',
+      },
+      'Strategy Deep-Dive': {
+        personas: ['Nova', 'Nia'],
+        description: 'Focus on the commercial angle and the next execution move.',
+      },
+    };
+
+    var App = {
+      state: {
+        settings: null,
+        dashboard: null,
+        ideas: null,
+        resources: null,
+        tasks: null,
+        sessionHistory: null,
+        activeSession: null,
+        dragging: null,
+        drawerHtml: '',
+        modalHtml: '',
+        sessionAutoplayTimer: null,
+        typingTimer: null,
+        liveTyping: null,
+        personaUploads: {},
+        brainstormAutoDelayMs: 1100,
+        ui: {
+          ideasView: 'list',
+          ideasSearch: '',
+          ideasSort: 'PriorityScore',
+          ideaStage: 'All',
+          resourcesView: 'cards',
+          resourceType: 'All Items',
+          resourceStatus: 'All Statuses',
+          resourceSearch: '',
+          taskSearch: '',
+          taskIdeaFilter: 'All Ideas',
+          taskAssigneeFilter: '',
+          taskDueFilter: 'All',
+          ideaDetailTab: 'overview',
+          ideaDetailEditing: false,
+          brainstormMode: 'Full Roundtable',
+          brainstormHistoryIdeaId: '',
+          brainstormIdeaId: '',
+          globalSearch: '',
+        },
+      },
+      init: init,
+      loadRoute: loadRoute,
+      invalidate: invalidate,
+    };
+
+    window.RTOSApp = App;
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+      bindEvents_();
+      var outlet = document.getElementById('route-outlet');
+      if (!window.location.hash) {
+        var initial = outlet && outlet.dataset ? outlet.dataset.initialPage : 'dashboard';
+        window.history.replaceState(null, '', '#' + (initial || 'dashboard'));
+      }
+      bootstrap_();
+    }
+
+    async function bootstrap_() {
+      renderShell_();
+      renderLoadingRoute_('Preparing the Roundtable workspace...');
+      try {
+        await AppApi.setupSpreadsheet();
+        App.state.settings = await AppApi.getSettings();
+        applyTheme_(String(App.state.settings.darkModeEnabled) === 'true');
+        renderShell_();
+        await loadRoute(true);
+      } catch (error) {
+        renderFatalState_(error);
+        showToast_(error.message || 'Failed to initialize the app.', 'error');
+      }
+    }
+
+    async function loadRoute(force) {
+      try {
+        var previousRoute = App.state.route;
+        var route = parseHash_(window.location.hash);
+        App.state.route = route;
+        if (route.name !== 'brainstorm') {
+          clearLiveBrainstormEffects_();
+        }
+        if (
+          route.name !== 'idea-detail' ||
+          !previousRoute ||
+          previousRoute.name !== 'idea-detail' ||
+          previousRoute.params.id !== route.params.id
+        ) {
+          App.state.ui.ideaDetailEditing = false;
+        }
+        renderShell_();
+        closeDrawer_();
+        renderLoadingRoute_('Loading view...');
+
+        if (route.name === 'dashboard') {
+          await ensureDashboard_(force);
+          renderDashboard_();
+          return;
+        }
+
+        if (route.name === 'ideas') {
+          await ensureIdeas_(force);
+          renderIdeas_();
+          return;
+        }
+
+        if (route.name === 'ideas-new') {
+          renderTemplateIntoOutlet_('template-new-spark');
+          return;
+        }
+
+        if (route.name === 'idea-detail') {
+          await renderIdeaDetail_(route.params.id, force);
+          return;
+        }
+
+        if (route.name === 'brainstorm-history') {
+          await Promise.all([ensureIdeas_(force), ensureSessionHistory_(force)]);
+          renderBrainstormHistory_();
+          return;
+        }
+
+        if (route.name === 'brainstorm') {
+          await Promise.all([ensureIdeas_(force), ensureSessionHistory_(force)]);
+          await renderBrainstormRoute_(route, force);
+          return;
+        }
+
+        if (route.name === 'resources') {
+          await Promise.all([ensureResources_(force), ensureIdeas_(force)]);
+          renderResources_();
+          return;
+        }
+
+        if (route.name === 'tasks') {
+          await Promise.all([ensureTasks_(force), ensureIdeas_(force)]);
+          renderTasks_();
+          return;
+        }
+
+        if (route.name === 'settings') {
+          await ensureSettings_(force);
+          renderSettings_();
+          return;
+        }
+
+        window.location.hash = '#dashboard';
+      } catch (error) {
+        renderFatalState_(error);
+        showToast_(error.message || 'Something went wrong while rendering the route.', 'error');
+      }
+    }
+
+    function invalidate(keys) {
+      (keys || []).forEach(function (key) {
+        App.state[key] = null;
+      });
+    }
+
+    function bindEvents_() {
+      window.addEventListener('hashchange', function () {
+        if (App.state.settings) {
+          loadRoute(false);
+        }
+      });
+
+      document.addEventListener('click', function (event) {
+        var navTarget = event.target.closest('[data-nav]');
+        if (navTarget) {
+          event.preventDefault();
+          window.location.hash = navTarget.getAttribute('data-nav');
+          return;
+        }
+
+        var actionTarget = event.target.closest('[data-action]');
+        if (actionTarget) {
+          event.preventDefault();
+          handleAction_(actionTarget.getAttribute('data-action'), actionTarget);
+          return;
+        }
+
+        var ideaViewTarget = event.target.closest('[data-ideas-view]');
+        if (ideaViewTarget) {
+          App.state.ui.ideasView = ideaViewTarget.getAttribute('data-ideas-view');
+          renderIdeas_();
+          return;
+        }
+
+        var stageFilterTarget = event.target.closest('[data-idea-stage-filter]');
+        if (stageFilterTarget) {
+          App.state.ui.ideaStage = stageFilterTarget.getAttribute('data-idea-stage-filter');
+          renderIdeas_();
+          return;
+        }
+
+        var ideaTabTarget = event.target.closest('[data-idea-detail-tab]');
+        if (ideaTabTarget) {
+          App.state.ui.ideaDetailTab = ideaTabTarget.getAttribute('data-idea-detail-tab');
+          App.state.ui.ideaDetailEditing = false;
+          loadRoute(false);
+          return;
+        }
+
+        var resourceViewTarget = event.target.closest('[data-resources-view]');
+        if (resourceViewTarget) {
+          App.state.ui.resourcesView = resourceViewTarget.getAttribute('data-resources-view');
+          renderResources_();
+          return;
+        }
+
+        var resourceTypeTarget = event.target.closest('[data-resource-type]');
+        if (resourceTypeTarget) {
+          App.state.ui.resourceType = resourceTypeTarget.getAttribute('data-resource-type');
+          renderResources_();
+          return;
+        }
+
+        var resourceStatusTarget = event.target.closest('[data-resource-status]');
+        if (resourceStatusTarget) {
+          App.state.ui.resourceStatus = resourceStatusTarget.getAttribute('data-resource-status');
+          renderResources_();
+          return;
+        }
+
+        var brainstormModeTarget = event.target.closest('[data-brainstorm-mode]');
+        if (brainstormModeTarget) {
+          App.state.ui.brainstormMode = brainstormModeTarget.getAttribute('data-brainstorm-mode');
+          renderBrainstormRoute_(App.state.route || parseHash_(window.location.hash), false);
+          return;
+        }
+
+        var taskIdeaFilterTarget = event.target.closest('[data-task-idea-filter]');
+        if (taskIdeaFilterTarget) {
+          App.state.ui.taskIdeaFilter = taskIdeaFilterTarget.getAttribute('data-task-idea-filter');
+          renderTasks_();
+          return;
+        }
+
+        var taskDueFilterTarget = event.target.closest('[data-task-due-filter]');
+        if (taskDueFilterTarget) {
+          App.state.ui.taskDueFilter = taskDueFilterTarget.getAttribute('data-task-due-filter');
+          renderTasks_();
+        }
+      });
+
+      document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (!(form instanceof HTMLFormElement)) {
+          return;
+        }
+        event.preventDefault();
+
+        if (form.id === 'new-idea-form') {
+          handleNewIdeaSubmit_(form);
+          return;
+        }
+        if (form.id === 'settings-form') {
+          handleSettingsSubmit_(form);
+          return;
+        }
+        if (form.id === 'global-search-form') {
+          var searchField = form.querySelector('[data-global-search]');
+          App.state.ui.globalSearch = searchField ? searchField.value : '';
+          App.state.ui.ideasSearch = App.state.ui.globalSearch;
+          window.location.hash = '#ideas';
+          return;
+        }
+        if (form.id === 'brainstorm-launch-form') {
+          handleBrainstormLaunch_(form);
+          return;
+        }
+        if (form.id === 'idea-page-edit-form' || form.id === 'idea-drawer-edit-form') {
+          handleIdeaEditSubmit_(form);
+          return;
+        }
+        if (form.id === 'resource-create-form') {
+          handleResourceCreate_(form);
+          return;
+        }
+        if (form.id === 'resource-edit-form') {
+          handleResourceUpdate_(form);
+          return;
+        }
+        if (form.id === 'task-create-form') {
+          handleTaskCreate_(form);
+          return;
+        }
+        if (form.id === 'task-edit-form') {
+          handleTaskUpdate_(form);
+        }
+      });
+
+      document.addEventListener('input', function (event) {
+        var target = event.target;
+        if (target.matches('[data-ideas-search]')) {
+          App.state.ui.ideasSearch = target.value;
+          renderIdeas_();
+          return;
+        }
+        if (target.matches('[data-resource-search]')) {
+          App.state.ui.resourceSearch = target.value;
+          renderResources_();
+          return;
+        }
+        if (target.matches('[data-task-search]')) {
+          App.state.ui.taskSearch = target.value;
+          renderTasks_();
+        }
+      });
+
+      document.addEventListener('change', function (event) {
+        var target = event.target;
+        if (target.matches('[data-ideas-sort]')) {
+          App.state.ui.ideasSort = target.value;
+          renderIdeas_();
+          return;
+        }
+        if (target.matches('[data-brainstorm-history-filter]')) {
+          App.state.ui.brainstormHistoryIdeaId = target.value;
+          renderBrainstormHistory_();
+          return;
+        }
+        if (target.matches('[name="activeLlmProvider"]')) {
+          syncSettingsProviderUi_(target.form, App.state.settings || {});
+          return;
+        }
+        if (target.matches('[data-persona-avatar-input]')) {
+          handlePersonaAvatarInput_(target);
+        }
+      });
+
+      document.addEventListener('input', function (event) {
+        var target = event.target;
+        if (target.matches('[data-persona-name-input]')) {
+          updatePersonaSettingsCardPreview_(target.closest('[data-persona-card]'));
+        }
+      });
+
+      document.addEventListener('dragstart', function (event) {
+        var item = event.target.closest('[data-drag-type]');
+        if (!item) {
+          return;
+        }
+        App.state.dragging = {
+          type: item.getAttribute('data-drag-type'),
+          id: item.getAttribute('data-drag-id'),
+        };
+        item.classList.add('opacity-50');
+      });
+
+      document.addEventListener('dragend', function (event) {
+        var item = event.target.closest('[data-drag-type]');
+        if (item) {
+          item.classList.remove('opacity-50');
+        }
+        App.state.dragging = null;
+      });
+
+      document.addEventListener('dragover', function (event) {
+        var target = event.target.closest('[data-drop-type]');
+        if (!target || !App.state.dragging) {
+          return;
+        }
+        if (target.getAttribute('data-drop-type') === App.state.dragging.type) {
+          event.preventDefault();
+        }
+      });
+
+      document.addEventListener('drop', function (event) {
+        var target = event.target.closest('[data-drop-type]');
+        if (!target || !App.state.dragging) {
+          return;
+        }
+        if (target.getAttribute('data-drop-type') !== App.state.dragging.type) {
+          return;
+        }
+        event.preventDefault();
+        if (App.state.dragging.type === 'idea') {
+          handleIdeaDrop_(App.state.dragging.id, target.getAttribute('data-drop-stage'));
+          return;
+        }
+        if (App.state.dragging.type === 'task') {
+          handleTaskDrop_(App.state.dragging.id, target.getAttribute('data-drop-status'));
+        }
+      });
+    }
+
+    async function handleAction_(action, element) {
+      try {
+        if (action === 'refresh-route') {
+          await loadRoute(true);
+          showToast_('Refreshed the current view.', 'success');
+          return;
+        }
+
+        if (action === 'open-help-modal') {
+          openModal_(
+            [
+              '<div class="pointer-events-auto mx-auto max-w-lg w-full mt-16 bg-surface-container-lowest rounded-xl ambient-shadow p-7 space-y-4">',
+              '<div class="flex items-start justify-between gap-4">',
+              '<div class="space-y-1"><h2 class="font-headline text-2xl font-bold tracking-tight">Help Center</h2><p class="text-on-surface-variant">A quick orientation for the lightweight Roundtable workspace.</p></div>',
+              '<button type="button" data-action="close-modal" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined">close</span></button>',
+              '</div>',
+              '<div class="space-y-3 text-sm text-on-surface-variant">',
+              '<p>Use <strong>New Spark</strong> to capture ideas, then launch a brainstorm from the idea detail page or the Brainstorming route.</p>',
+              '<p>The right drawer gives you a quick edit surface for ideas, tasks, and resources without leaving the current view.</p>',
+              '<p>Settings stores your API credentials in Script Properties and lets you install the daily reminder triggers.</p>',
+              '</div>',
+              '</div>',
+            ].join('')
+          );
+          return;
+        }
+
+        if (action === 'toggle-mobile-nav') {
+          openModal_(renderMobileNavModal_());
+          return;
+        }
+
+        if (action === 'close-modal') {
+          closeModal_();
+          return;
+        }
+
+        if (action === 'close-drawer') {
+          closeDrawer_();
+          return;
+        }
+
+        if (action === 'clear-persona-avatar') {
+          handlePersonaAvatarClear_(element);
+          return;
+        }
+
+        if (action === 'open-resource-modal') {
+          await ensureIdeas_(false);
+          openModal_(renderResourceCreateModal_());
+          return;
+        }
+
+        if (action === 'open-task-modal') {
+          await Promise.all([ensureIdeas_(false), ensureTasks_(false)]);
+          openModal_(
+            renderTaskCreateModal_(
+              element.getAttribute('data-default-status') || 'Todo',
+              element.getAttribute('data-default-idea-id') || ''
+            )
+          );
+          return;
+        }
+
+        if (action === 'toggle-idea-edit') {
+          App.state.ui.ideaDetailEditing = !App.state.ui.ideaDetailEditing;
+          await loadRoute(false);
+          return;
+        }
+
+        if (action === 'launch-brainstorm-from-detail') {
+          var currentRoute = parseHash_(window.location.hash);
+          window.location.hash = '#brainstorm?ideaId=' + encodeURIComponent(currentRoute.params.id);
+          return;
+        }
+
+        if (action === 'run-brainstorm') {
+          window.location.hash = '#brainstorm?ideaId=' + encodeURIComponent(element.getAttribute('data-idea-id'));
+          return;
+        }
+
+        if (action === 'open-idea-drawer') {
+          await openIdeaDrawer_(element.getAttribute('data-idea-id'));
+          return;
+        }
+
+        if (action === 'open-resource-drawer') {
+          await openResourceDrawer_(element.getAttribute('data-resource-id'));
+          return;
+        }
+
+        if (action === 'open-task-drawer') {
+          await openTaskDrawer_(element.getAttribute('data-task-id'));
+          return;
+        }
+
+        if (action === 'archive-idea') {
+          await confirmIdeaArchive_(element.getAttribute('data-idea-id'));
+          return;
+        }
+
+        if (action === 'confirm-archive-idea') {
+          await AppApi.archiveIdea(element.getAttribute('data-idea-id'));
+          invalidate(['ideas', 'dashboard']);
+          closeModal_();
+          await loadRoute(true);
+          showToast_('Idea moved to Archived.', 'success');
+          return;
+        }
+
+        if (action === 'test-llm-connection') {
+          await testConnection_();
+          return;
+        }
+
+        if (action === 'clear-sessions') {
+          openModal_(renderConfirmModal_('Clear all sessions?', 'This will wipe every brainstorm turn from the Sessions sheet.', 'confirm-clear-sessions', 'Clear sessions'));
+          return;
+        }
+
+        if (action === 'confirm-clear-sessions') {
+          await AppApi.clearAllSessions();
+          invalidate(['sessionHistory', 'dashboard']);
+          closeModal_();
+          await loadRoute(true);
+          showToast_('All sessions were cleared.', 'success');
+          return;
+        }
+
+        if (action === 'reset-scores') {
+          openModal_(renderConfirmModal_('Reset all scores?', 'This clears PriorityScore and NextAction values across the idea bank.', 'confirm-reset-scores', 'Reset scores'));
+          return;
+        }
+
+        if (action === 'confirm-reset-scores') {
+          await AppApi.resetScores();
+          invalidate(['ideas', 'dashboard']);
+          closeModal_();
+          await loadRoute(true);
+          showToast_('Priority scores were reset.', 'success');
+          return;
+        }
+
+        if (action === 'install-triggers') {
+          await AppApi.installTriggers();
+          showToast_('Daily reminder triggers installed.', 'success');
+          return;
+        }
+
+        if (action === 'draft-idea-brief') {
+          await handleIdeaDraftRequest_(element.closest('form'));
+          return;
+        }
+
+        if (action === 'clear-idea-brief-draft') {
+          clearIdeaDraftForm_(element.closest('form'));
+          return;
+        }
+
+        if (action === 'pause-session-autoplay') {
+          if (App.state.activeSession) {
+            App.state.activeSession.autoplay = false;
+            clearSessionAutoplayTimer_();
+            renderBrainstormRoute_(App.state.route || parseHash_(window.location.hash), false);
+            showToast_('Autoplay paused. You can resume when you are ready.', 'success');
+          }
+          return;
+        }
+
+        if (action === 'resume-session-autoplay') {
+          if (App.state.activeSession) {
+            App.state.activeSession.autoplay = true;
+            renderBrainstormRoute_(App.state.route || parseHash_(window.location.hash), false);
+            showToast_('Autoplay resumed.', 'success');
+          }
+          return;
+        }
+
+        if (action === 'run-next-persona-turn') {
+          if (App.state.activeSession) {
+            App.state.activeSession.autoplay = false;
+          }
+          clearSessionAutoplayTimer_();
+          if (isActiveSessionTyping_()) {
+            return;
+          }
+          await runNextSessionTurn_();
+          return;
+        }
+
+        if (action === 'accept-recommendation') {
+          clearLiveBrainstormEffects_();
+          if (App.state.activeSession && App.state.activeSession.ideaId) {
+            window.location.hash = '#ideas/' + encodeURIComponent(App.state.activeSession.ideaId);
+          }
+          App.state.activeSession = null;
+          showToast_('Recommendation accepted. Review the updated idea record next.', 'success');
+          return;
+        }
+
+        if (action === 'save-close-session') {
+          clearLiveBrainstormEffects_();
+          if (App.state.activeSession && App.state.activeSession.ideaId) {
+            window.location.hash = '#ideas/' + encodeURIComponent(App.state.activeSession.ideaId);
+          } else {
+            window.location.hash = '#brainstorm/history';
+          }
+          App.state.activeSession = null;
+          return;
+        }
+
+        if (action === 'run-session-again') {
+          if (!App.state.activeSession) {
+            return;
+          }
+          clearLiveBrainstormEffects_();
+          var ideaId = App.state.activeSession.ideaId;
+          var mode = App.state.activeSession.mode;
+          App.state.activeSession = null;
+          await startSession_(ideaId, mode);
+          return;
+        }
+
+        if (action === 'resume-session') {
+          clearLiveBrainstormEffects_();
+          window.location.hash = '#brainstorm?sessionId=' + encodeURIComponent(element.getAttribute('data-session-id'));
+          return;
+        }
+
+        if (action === 'confirm-delete-task') {
+          await AppApi.deleteTask(element.getAttribute('data-task-id'));
+          invalidate(['tasks', 'dashboard']);
+          closeDrawer_();
+          closeModal_();
+          await loadRoute(true);
+          showToast_('Task deleted.', 'success');
+          return;
+        }
+
+        if (action === 'delete-task') {
+          openModal_(renderConfirmModal_('Delete task?', 'This removes the task from the Tasks sheet.', 'confirm-delete-task', 'Delete task', element.getAttribute('data-task-id')));
+        }
+      } catch (error) {
+        showToast_(error.message || 'Action failed.', 'error');
+      }
+    }
+
+    function renderShell_() {
+      var route = App.state.route || parseHash_(window.location.hash || '#dashboard');
+      var settings = App.state.settings || { userName: 'Alex', avatarColor: 'primary' };
+      document.getElementById('sidebar').innerHTML = renderSidebar_(route, settings);
+      document.getElementById('desktop-topbar').innerHTML = renderTopbar_(settings, false);
+      document.getElementById('mobile-topbar').innerHTML = renderTopbar_(settings, true);
+      renderDrawer_();
+      renderModal_();
+    }
+
+    function renderSidebar_(route, settings) {
+      var avatarClasses = getAvatarBackgroundClass_(settings.avatarColor);
+      return [
+        '<div class="mb-8 px-3 py-2">',
+        '<div class="flex items-center gap-3">',
+        '<div class="w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center font-headline font-bold">R</div>',
+        '<div><div class="font-headline font-extrabold text-xl text-primary tracking-tight">Roundtable OS</div><div class="text-xs uppercase tracking-[0.14em] text-on-surface-variant">Editorial Engine</div></div>',
+        '</div>',
+        '</div>',
+        '<nav class="flex-1 flex flex-col gap-1">',
+        NAV_ITEMS.map(function (item) {
+          var active = route.root === item.key;
+          return [
+            '<button type="button" data-nav="',
+            item.hash,
+            '" class="w-full text-left flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ease-in-out ',
+            active
+              ? 'text-primary bg-surface-container-lowest ambient-shadow'
+              : 'text-outline hover:text-on-surface hover:bg-surface-container-high',
+            '">',
+            '<span class="material-symbols-outlined ',
+            active ? 'fill' : '',
+            '">',
+            item.icon,
+            '</span>',
+            escapeHtml_(item.label),
+            '</button>',
+          ].join('');
+        }).join(''),
+        '</nav>',
+        '<div class="mt-auto pt-4 flex flex-col gap-2">',
+        '<button type="button" data-nav="#ideas/new" class="w-full px-4 py-3 rounded-lg bg-gradient-primary text-on-primary ambient-shadow font-medium hover:opacity-90 transition-all duration-200 ease-in-out inline-flex items-center justify-center gap-2"><span class="material-symbols-outlined text-lg">add</span>New Spark</button>',
+        '<button type="button" data-action="open-help-modal" class="w-full text-left flex items-center gap-3 px-4 py-2.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-high transition-all duration-200 ease-in-out font-medium text-sm"><span class="material-symbols-outlined">help</span>Help Center</button>',
+        '<div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-container-highest/60">',
+        '<div class="w-9 h-9 rounded-full ',
+        avatarClasses,
+        ' text-on-primary flex items-center justify-center font-headline font-bold">',
+        escapeHtml_((settings.userName || 'A').charAt(0).toUpperCase()),
+        '</div>',
+        '<div><div class="font-medium text-sm text-on-surface">',
+        escapeHtml_(settings.userName || 'Alex'),
+        '</div><div class="text-xs text-on-surface-variant">',
+        escapeHtml_(settings.userEmail || 'Workspace owner'),
+        '</div></div>',
+        '</div>',
+        '</div>',
+      ].join('');
+    }
+
+    function renderTopbar_(settings, mobile) {
+      var userInitial = escapeHtml_((settings.userName || 'A').charAt(0).toUpperCase());
+      var avatarClasses = getAvatarBackgroundClass_(settings.avatarColor);
+      if (mobile) {
+        return [
+          '<div class="font-headline font-bold text-xl tracking-tight">Roundtable OS</div>',
+          '<div class="flex items-center gap-3">',
+          '<button type="button" data-action="toggle-mobile-nav" class="p-2 rounded-full hover:bg-surface-container-high transition-all duration-200 ease-in-out"><span class="material-symbols-outlined">menu</span></button>',
+          '<div class="w-9 h-9 rounded-full ',
+          avatarClasses,
+          ' text-on-primary flex items-center justify-center font-headline font-bold">',
+          userInitial,
+          '</div>',
+          '</div>',
+        ].join('');
+      }
+
+      return [
+        '<form id="global-search-form" class="relative w-full max-w-md">',
+        '<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>',
+        '<input type="search" value="',
+        escapeHtml_(App.state.ui.globalSearch || ''),
+        '" data-global-search class="w-full bg-surface-container-highest rounded-full pl-10 pr-4 py-2.5 text-sm placeholder:text-outline focus-ring" placeholder="Search ideas, resources, tasks..." />',
+        '</form>',
+        '<div class="flex items-center gap-4">',
+        '<button type="button" class="p-2 rounded-full hover:bg-surface-container-high transition-all duration-200 ease-in-out text-outline hover:text-on-surface"><span class="material-symbols-outlined">notifications</span></button>',
+        '<button type="button" data-action="open-help-modal" class="p-2 rounded-full hover:bg-surface-container-high transition-all duration-200 ease-in-out text-outline hover:text-on-surface"><span class="material-symbols-outlined">help</span></button>',
+        '<div class="w-9 h-9 rounded-full ',
+        avatarClasses,
+        ' text-on-primary flex items-center justify-center font-headline font-bold">',
+        userInitial,
+        '</div>',
+        '</div>',
+      ].join('');
+    }
+
+    function renderLoadingRoute_(message) {
+      document.getElementById('route-outlet').innerHTML = [
+        '<section class="p-10 max-w-4xl mx-auto w-full">',
+        '<div class="editorial-card p-10 flex items-center gap-4">',
+        '<div class="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>',
+        '<div><div class="font-headline text-2xl font-bold tracking-tight">Loading</div><div class="text-on-surface-variant">',
+        escapeHtml_(message || 'Please wait...'),
+        '</div></div>',
+        '</div>',
+        '</section>',
+      ].join('');
+    }
+
+    function renderFatalState_(error) {
+      document.getElementById('route-outlet').innerHTML = [
+        '<section class="p-10 max-w-4xl mx-auto w-full">',
+        '<div class="editorial-card p-10 space-y-4">',
+        '<div class="w-12 h-12 rounded-lg bg-error-container text-on-error-container flex items-center justify-center"><span class="material-symbols-outlined">error</span></div>',
+        '<h1 class="font-headline text-3xl font-bold tracking-tight">The view could not be rendered</h1>',
+        '<p class="text-on-surface-variant">',
+        escapeHtml_(error && error.message ? error.message : String(error)),
+        '</p>',
+        '<div class="flex gap-3"><button type="button" data-action="refresh-route" class="px-4 py-2.5 rounded-lg bg-gradient-primary text-on-primary font-medium">Try again</button><button type="button" data-nav="#settings" class="px-4 py-2.5 rounded-lg ghost-border text-primary font-medium">Open Settings</button></div>',
+        '</div>',
+        '</section>',
+      ].join('');
+    }
+
+    async function ensureSettings_(force) {
+      if (!App.state.settings || force) {
+        App.state.settings = await AppApi.getSettings();
+      }
+      return App.state.settings;
+    }
+
+    async function ensureIdeas_(force) {
+      if (!App.state.ideas || force) {
+        App.state.ideas = await AppApi.getIdeas({});
+      }
+      return App.state.ideas;
+    }
+
+    async function ensureResources_(force) {
+      if (!App.state.resources || force) {
+        App.state.resources = await AppApi.getResources({});
+      }
+      return App.state.resources;
+    }
+
+    async function ensureTasks_(force) {
+      if (!App.state.tasks || force) {
+        App.state.tasks = await AppApi.getTasks({});
+      }
+      return App.state.tasks;
+    }
+
+    async function ensureSessionHistory_(force) {
+      if (!App.state.sessionHistory || force) {
+        App.state.sessionHistory = await AppApi.getSessionHistory({});
+      }
+      return App.state.sessionHistory;
+    }
+
+    async function ensureDashboard_(force) {
+      if (!App.state.dashboard || force) {
+        App.state.dashboard = await AppApi.getDashboardData();
+      }
+      return App.state.dashboard;
+    }
+
+    function renderTemplateIntoOutlet_(templateId) {
+      var template = document.getElementById(templateId);
+      var outlet = document.getElementById('route-outlet');
+      outlet.innerHTML = '';
+      outlet.appendChild(template.content.cloneNode(true));
+    }
+
+    function renderDashboard_() {
+      renderTemplateIntoOutlet_('template-dashboard');
+      var data = App.state.dashboard;
+      var root = document.getElementById('route-outlet');
+      root.querySelector('[data-dashboard-greeting]').textContent = greetingForName_(data.greetingName || 'Alex');
+      root.querySelector('[data-dashboard-priorities]').innerHTML = data.topPriorities.length
+        ? data.topPriorities
+            .map(function (idea) {
+              return renderIdeaCard_(idea, { compact: false });
+            })
+            .join('')
+        : renderInlineEmptyState_('No ideas yet', 'Capture the first spark to populate your priority board.', 'Create an idea', '#ideas/new');
+
+      root.querySelector('[data-dashboard-pipeline]').innerHTML = data.pipeline.grouped
+        .map(function (item, index) {
+          var dotClasses = ['bg-primary-container', 'bg-secondary-container', 'bg-tertiary-container', 'bg-secondary-container', 'bg-surface-container-highest'];
+          return [
+            '<div class="flex items-center justify-between p-3 rounded-lg bg-surface hover:bg-surface-container-high transition-all duration-200 ease-in-out">',
+            '<div class="flex items-center gap-3"><div class="w-3 h-3 rounded-full ',
+            dotClasses[index] || 'bg-surface-container-highest',
+            '"></div><span class="text-sm font-medium">',
+            escapeHtml_(item.label),
+            '</span></div>',
+            '<span class="font-headline font-bold text-on-surface-variant">',
+            String(item.count),
+            '</span>',
+            '</div>',
+          ].join('');
+        })
+        .join('');
+
+      root.querySelector('[data-dashboard-sessions]').innerHTML = data.recentSessions.length
+        ? data.recentSessions.map(renderDashboardSessionCard_).join('')
+        : renderSmallEmptyCard_('No sessions yet', 'Run the first brainstorm to start building a transcript.');
+
+      root.querySelector('[data-dashboard-dormant]').innerHTML = data.dormantIdeas.length
+        ? data.dormantIdeas
+            .map(function (idea) {
+              return [
+                '<article class="editorial-card p-4 space-y-3 bg-error-container/20">',
+                '<div class="flex items-center justify-between gap-3">',
+                '<div class="font-headline font-bold text-xl">',
+                escapeHtml_(idea.Name),
+                '</div>',
+                renderStageBadge_(idea.Stage),
+                '</div>',
+                '<p class="text-sm text-on-surface-variant">',
+                escapeHtml_(idea.NextAction || 'No next action recorded yet.'),
+                '</p>',
+                '<button type="button" data-open-idea-drawer="1" data-action="open-idea-drawer" data-idea-id="',
+                escapeHtml_(idea.ID),
+                '" class="text-primary text-sm font-medium hover:underline">Re-open idea</button>',
+                '</article>',
+              ].join('');
+            })
+            .join('')
+        : renderSmallEmptyCard_('No dormant ideas', 'Everything active has recent movement.');
+
+      root.querySelector('[data-dashboard-insights]').innerHTML = data.recentInsights.length
+        ? data.recentInsights
+            .map(function (insight) {
+              return [
+                '<article class="editorial-card p-5 space-y-4">',
+                '<div class="flex items-center justify-between gap-3">',
+                '<div class="inline-flex items-center gap-2">',
+                renderPersonaPill_(insight.agent),
+                '<span class="text-xs uppercase tracking-[0.12em] text-on-surface-variant">',
+                escapeHtml_(insight.ideaName),
+                '</span>',
+                '</div>',
+                '<button type="button" data-action="resume-session" data-session-id="',
+                escapeHtml_(insight.sessionId),
+                '" class="text-primary text-sm font-medium hover:underline">Resume</button>',
+                '</div>',
+                '<p class="text-on-surface leading-relaxed">',
+                escapeHtml_(insight.content),
+                '...</p>',
+                '</article>',
+              ].join('');
+            })
+            .join('')
+        : renderSmallEmptyCard_('No insights yet', 'Persona highlights will appear here after sessions run.');
+
+      root.querySelector('[data-dashboard-stats]').innerHTML = [
+        renderStatCard_('Total Ideas', data.stats.totalIdeas, 'lightbulb'),
+        renderStatCard_('Active Sessions', data.stats.activeSessions, 'psychology'),
+        renderStatCard_('Resources Logged', data.stats.resourcesLogged, 'inventory_2'),
+        renderStatCard_('Tasks Pending', data.stats.tasksPending, 'checklist'),
+      ].join('');
+    }
+
+    function renderIdeas_() {
+      renderTemplateIntoOutlet_('template-ideas');
+      var root = document.getElementById('route-outlet');
+      var stageContainer = root.querySelector('[data-idea-stage-filters]');
+      stageContainer.innerHTML = ['All']
+        .concat(IDEA_STAGES)
+        .map(function (stage) {
+          var active = App.state.ui.ideaStage === stage;
+          return [
+            '<button type="button" data-idea-stage-filter="',
+            escapeHtml_(stage),
+            '" class="px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ease-in-out ',
+            active ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-highest text-on-surface-variant hover:text-on-surface',
+            '">',
+            escapeHtml_(stage),
+            '</button>',
+          ].join('');
+        })
+        .join('');
+
+      root.querySelector('[data-ideas-search]').value = App.state.ui.ideasSearch;
+      root.querySelector('[data-ideas-sort]').value = App.state.ui.ideasSort;
+      Array.prototype.forEach.call(root.querySelectorAll('[data-ideas-view]'), function (button) {
+        var active = button.getAttribute('data-ideas-view') === App.state.ui.ideasView;
+        button.className =
+          'px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ease-in-out ' +
+          (active
+            ? 'text-primary bg-surface-container-lowest shadow-sm'
+            : 'text-on-surface-variant hover:text-on-surface');
+      });
+
+      var ideas = filterIdeas_(App.state.ideas || []);
+      var emptyContainer = root.querySelector('[data-ideas-empty]');
+      emptyContainer.classList.toggle('hidden', ideas.length > 0);
+      emptyContainer.innerHTML = renderEmptyState_('No ideas match the current filter', 'Adjust the search or stage filter, or capture a new spark to get the idea bank moving.', 'Capture Spark', '#ideas/new');
+
+      var listView = root.querySelector('[data-ideas-list-view]');
+      var kanbanView = root.querySelector('[data-ideas-kanban-view]');
+      listView.classList.toggle('hidden', App.state.ui.ideasView !== 'list');
+      kanbanView.classList.toggle('hidden', App.state.ui.ideasView !== 'kanban');
+
+      listView.innerHTML = IDEA_STAGES.map(function (stage) {
+        var stageIdeas = ideas
+          .filter(function (idea) {
+            return idea.Stage === stage;
+          })
+          .sort(sortIdeasComparator_());
+        return [
+          '<section class="space-y-4">',
+          '<div class="flex items-center justify-between">',
+          '<div class="flex items-center gap-3"><h2 class="font-headline text-2xl font-bold tracking-tight">',
+          escapeHtml_(stage),
+          '</h2><span class="text-sm text-on-surface-variant">',
+          String(stageIdeas.length),
+          '</span></div>',
+          '<button type="button" data-nav="#ideas/new" class="text-primary text-sm font-medium hover:underline">Add idea</button>',
+          '</div>',
+          stageIdeas.length
+            ? '<div class="space-y-4">' + stageIdeas.map(function (idea) { return renderIdeaCard_(idea); }).join('') + '</div>'
+            : '<div class="editorial-card p-5 text-sm text-on-surface-variant">No ideas are sitting in ' + escapeHtml_(stage) + ' right now.</div>',
+          '</section>',
+        ].join('');
+      }).join('');
+
+      kanbanView.innerHTML =
+        '<div class="flex gap-5 min-w-max pb-4">' +
+        IDEA_STAGES.map(function (stage) {
+          var stageIdeas = ideas.filter(function (idea) {
+            return idea.Stage === stage;
+          });
+          return [
+            '<section class="w-80 shrink-0 bg-surface-container-low rounded-xl p-4 space-y-4" data-drop-type="idea" data-drop-stage="',
+            escapeHtml_(stage),
+            '">',
+            '<div class="flex items-center justify-between"><div class="flex items-center gap-2"><h2 class="font-headline text-sm uppercase tracking-[0.12em] text-on-surface-variant">',
+            escapeHtml_(stage),
+            '</h2><span class="text-xs text-outline">',
+            String(stageIdeas.length),
+            '</span></div>',
+            '<button type="button" data-nav="#ideas/new" class="text-outline hover:text-on-surface transition-all duration-200 ease-in-out"><span class="material-symbols-outlined text-lg">add</span></button></div>',
+            '<div class="space-y-3 min-h-[280px]">',
+            stageIdeas.length
+              ? stageIdeas
+                  .sort(sortIdeasComparator_())
+                  .map(function (idea) {
+                    return renderKanbanIdeaCard_(idea);
+                  })
+                  .join('')
+              : '<div class="bg-surface-container-lowest rounded-lg p-4 text-sm text-on-surface-variant">Drop an idea here.</div>',
+            '</div>',
+            '</section>',
+          ].join('');
+        }).join('') +
+        '</div>';
+    }
+
+    async function renderIdeaDetail_(ideaId, force) {
+      var bundle = await AppApi.getIdeaDetailBundle(ideaId);
+      renderTemplateIntoOutlet_('template-idea-detail');
+      var root = document.getElementById('route-outlet');
+      root.querySelector('[data-idea-detail-stage]').innerHTML = renderStageBadge_(bundle.idea.Stage);
+      root.querySelector('[data-idea-detail-meta]').textContent = [bundle.idea.Category || 'Uncategorized', 'Score ' + scoreToPercent_(bundle.idea.PriorityScore || 0)].join(' • ');
+      root.querySelector('[data-idea-detail-title]').textContent = bundle.idea.Name;
+      root.querySelector('[data-idea-detail-summary]').textContent = bundle.idea.Summary || 'No summary recorded yet.';
+
+      Array.prototype.forEach.call(root.querySelectorAll('[data-idea-detail-tab]'), function (button) {
+        var active = button.getAttribute('data-idea-detail-tab') === App.state.ui.ideaDetailTab;
+        button.className =
+          'pb-4 border-b-2 text-lg transition-all duration-200 ease-in-out ' +
+          (active ? 'border-primary text-primary font-medium' : 'border-transparent text-on-surface-variant hover:text-on-surface');
+      });
+
+      root.querySelector('[data-idea-detail-main]').innerHTML = renderIdeaDetailMain_(bundle);
+      root.querySelector('[data-idea-detail-score]').innerHTML = renderIdeaScorePanel_(bundle);
+      root.querySelector('[data-idea-detail-side-resources]').innerHTML = renderIdeaSideResources_(bundle);
+    }
+
+    async function renderBrainstormRoute_(route, force) {
+      renderTemplateIntoOutlet_('template-brainstorm');
+      var root = document.getElementById('route-outlet');
+      var launcher = root.querySelector('[data-brainstorm-launcher]');
+      var sessionContainer = root.querySelector('[data-brainstorm-session]');
+      var historyContainer = root.querySelector('[data-brainstorm-history]');
+
+      launcher.classList.remove('hidden');
+      sessionContainer.classList.add('hidden');
+      historyContainer.classList.add('hidden');
+
+      if (route.query.ideaId) {
+        App.state.ui.brainstormIdeaId = route.query.ideaId;
+      }
+
+      if (
+        route.query.sessionId &&
+        (!App.state.activeSession || App.state.activeSession.sessionId !== route.query.sessionId || force)
+      ) {
+        var progress = await AppApi.getSessionProgress(route.query.sessionId);
+        App.state.activeSession = hydrateActiveSessionFromProgress_(progress);
+      }
+
+      if (App.state.activeSession && (!route.query.sessionId || App.state.activeSession.sessionId === route.query.sessionId)) {
+        launcher.classList.add('hidden');
+        sessionContainer.classList.remove('hidden');
+        sessionContainer.innerHTML = renderBrainstormSession_(App.state.activeSession);
+        scheduleSessionAutoplay_(App.state.activeSession.turns && App.state.activeSession.turns.length ? App.state.brainstormAutoDelayMs : 350);
+        return;
+      }
+
+      clearSessionAutoplayTimer_();
+
+      root.querySelector('[data-brainstorm-idea-select]').innerHTML = (App.state.ideas || [])
+        .map(function (idea) {
+          return '<option value="' + escapeHtml_(idea.ID) + '">' + escapeHtml_(idea.Name) + ' • ' + escapeHtml_(idea.Stage) + '</option>';
+        })
+        .join('');
+
+      if (App.state.ui.brainstormIdeaId) {
+        root.querySelector('[data-brainstorm-idea-select]').value = App.state.ui.brainstormIdeaId;
+      }
+
+      root.querySelector('[data-brainstorm-mode-grid]').innerHTML = Object.keys(BRAINSTORM_MODES)
+        .map(function (mode) {
+          var config = BRAINSTORM_MODES[mode];
+          var active = App.state.ui.brainstormMode === mode;
+          return [
+            '<button type="button" data-brainstorm-mode="',
+            escapeHtml_(mode),
+            '" class="text-left rounded-xl p-5 transition-all duration-200 ease-in-out ',
+            active ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-low hover:bg-surface-container-high text-on-surface',
+            '">',
+            '<div class="font-headline text-xl font-bold tracking-tight">',
+            escapeHtml_(mode),
+            '</div>',
+            '<p class="mt-2 text-sm ',
+            active ? 'text-on-primary-container' : 'text-on-surface-variant',
+            '">',
+            escapeHtml_(config.description),
+            '</p>',
+            '<div class="mt-4 flex flex-wrap gap-2">',
+            config.personas.map(renderPersonaPill_).join(''),
+            '</div>',
+            '</button>',
+          ].join('');
+        })
+        .join('');
+
+      root.querySelector('[data-brainstorm-mode-guide]').innerHTML = Object.keys(BRAINSTORM_MODES)
+        .map(function (mode) {
+          return '<div><div class="font-medium text-on-surface">' + escapeHtml_(mode) + '</div><p>' + escapeHtml_(BRAINSTORM_MODES[mode].description) + '</p></div>';
+        })
+        .join('');
+
+      root.querySelector('[data-brainstorm-launcher-recent]').innerHTML = (App.state.sessionHistory || []).length
+        ? App.state.sessionHistory.slice(0, 4).map(renderDashboardSessionCard_).join('')
+        : renderSmallEmptyCard_('No prior sessions', 'Launch a brainstorm to establish the first transcript.');
+    }
+
+    function renderBrainstormHistory_() {
+      renderTemplateIntoOutlet_('template-brainstorm');
+      var root = document.getElementById('route-outlet');
+      root.querySelector('[data-brainstorm-launcher]').classList.add('hidden');
+      var historyContainer = root.querySelector('[data-brainstorm-history]');
+      historyContainer.classList.remove('hidden');
+      var sessions = (App.state.sessionHistory || []).filter(function (session) {
+        return !App.state.ui.brainstormHistoryIdeaId || session.ideaId === App.state.ui.brainstormHistoryIdeaId;
+      });
+
+      historyContainer.innerHTML = [
+        '<header class="space-y-3">',
+        '<h1 class="font-headline text-4xl font-extrabold tracking-tight">Session History</h1>',
+        '<p class="text-on-surface-variant text-lg">Review completed and in-progress brainstorm runs across the idea bank.</p>',
+        '</header>',
+        '<div class="editorial-card p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">',
+        '<div class="text-sm text-on-surface-variant">Filter by idea to narrow replay and resume targets.</div>',
+        '<select data-brainstorm-history-filter class="bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"><option value="">All ideas</option>',
+        (App.state.ideas || [])
+          .map(function (idea) {
+            return '<option value="' + escapeHtml_(idea.ID) + '">' + escapeHtml_(idea.Name) + '</option>';
+          })
+          .join(''),
+        '</select>',
+        '</div>',
+        sessions.length
+          ? '<div class="space-y-4">' +
+            sessions
+              .map(function (session) {
+                return [
+                  '<article class="editorial-card p-6 space-y-4">',
+                  '<div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4">',
+                  '<div class="space-y-2">',
+                  '<div class="flex items-center gap-3 flex-wrap"><h2 class="font-headline text-2xl font-bold tracking-tight">',
+                  escapeHtml_(session.ideaName),
+                  '</h2>',
+                  renderStagePillsFromSession_(session.personas),
+                  '</div>',
+                  '<p class="text-on-surface-variant text-sm">',
+                  escapeHtml_(session.summary || 'No synthesis yet.'),
+                  '</p>',
+                  '</div>',
+                  '<div class="text-sm text-on-surface-variant">',
+                  escapeHtml_(formatDateTime_(session.updatedAt)),
+                  '</div>',
+                  '</div>',
+                  '<div class="flex items-center justify-between gap-4">',
+                  '<div class="flex flex-wrap gap-2">',
+                  session.personas.map(renderPersonaPill_).join(''),
+                  '</div>',
+                  '<button type="button" data-action="resume-session" data-session-id="',
+                  escapeHtml_(session.sessionId),
+                  '" class="px-4 py-2.5 rounded-lg bg-gradient-primary text-on-primary font-medium hover:opacity-90 transition-all duration-200 ease-in-out">',
+                  session.complete ? 'View session' : 'Resume session',
+                  '</button>',
+                  '</div>',
+                  '</article>',
+                ].join('');
+              })
+              .join('') +
+            '</div>'
+          : renderEmptyState_('No sessions found', 'Adjust the filter or run a new brainstorm to populate session history.', 'Launch Brainstorm', '#brainstorm'),
+      ].join('');
+
+      if (App.state.ui.brainstormHistoryIdeaId) {
+        historyContainer.querySelector('[data-brainstorm-history-filter]').value = App.state.ui.brainstormHistoryIdeaId;
+      }
+    }
+
+    function renderResources_() {
+      renderTemplateIntoOutlet_('template-resources');
+      var root = document.getElementById('route-outlet');
+      var resources = filterResources_(App.state.resources || []);
+      root.querySelector('[data-resource-search]').value = App.state.ui.resourceSearch;
+
+      Array.prototype.forEach.call(root.querySelectorAll('[data-resources-view]'), function (button) {
+        var active = button.getAttribute('data-resources-view') === App.state.ui.resourcesView;
+        button.className =
+          'px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ease-in-out ' +
+          (active
+            ? 'text-primary bg-surface-container-lowest shadow-sm'
+            : 'text-on-surface-variant hover:text-on-surface');
+      });
+
+      root.querySelector('[data-resource-type-filters]').innerHTML = RESOURCE_TYPES.map(function (type) {
+        var active = App.state.ui.resourceType === type;
+        return [
+          '<button type="button" data-resource-type="',
+          escapeHtml_(type),
+          '" class="px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ease-in-out ',
+          active ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-highest text-on-surface-variant hover:text-on-surface',
+          '">',
+          escapeHtml_(type),
+          '</button>',
+        ].join('');
+      }).join('');
+
+      root.querySelector('[data-resource-status-filters]').innerHTML = RESOURCE_STATUSES.map(function (status) {
+        var active = App.state.ui.resourceStatus === status;
+        return [
+          '<button type="button" data-resource-status="',
+          escapeHtml_(status),
+          '" class="px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ease-in-out ',
+          active ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container-highest text-on-surface-variant hover:text-on-surface',
+          '">',
+          escapeHtml_(status),
+          '</button>',
+        ].join('');
+      }).join('');
+
+      root.querySelector('[data-resources-empty]').classList.toggle('hidden', resources.length > 0);
+      root.querySelector('[data-resources-empty]').innerHTML = renderEmptyState_('No resources match the current filter', 'Try a broader search, or add the first resource to seed the vault.', 'Add Resource', null, 'open-resource-modal');
+
+      var cards = root.querySelector('[data-resources-cards]');
+      var list = root.querySelector('[data-resources-list]');
+      cards.classList.toggle('hidden', App.state.ui.resourcesView !== 'cards');
+      list.classList.toggle('hidden', App.state.ui.resourcesView !== 'list');
+
+      cards.innerHTML = resources.map(renderResourceCard_).join('');
+      list.innerHTML = renderResourcesListTable_(resources);
+    }
+
+    function renderTasks_() {
+      renderTemplateIntoOutlet_('template-tasks');
+      var root = document.getElementById('route-outlet');
+      root.querySelector('[data-task-search]').value = App.state.ui.taskSearch;
+      root.querySelector('[data-task-filter-pills]').innerHTML = renderTaskFilters_();
+      root.querySelector('[data-tasks-board]').innerHTML = renderTaskBoard_(filterTasks_(App.state.tasks || []));
+    }
+
+    function renderSettings_() {
+      renderTemplateIntoOutlet_('template-settings');
+      var root = document.getElementById('route-outlet');
+      var form = root.querySelector('#settings-form');
+      populateForm_(form, App.state.settings);
+      form.querySelector('[name="notificationsEnabled"]').checked = String(App.state.settings.notificationsEnabled) === 'true';
+      form.querySelector('[name="darkModeEnabled"]').checked = String(App.state.settings.darkModeEnabled) === 'true';
+      root.querySelector('[data-settings-spreadsheet-id]').textContent = App.state.settings.spreadsheetId || 'Not linked yet';
+      syncSettingsProviderUi_(form, App.state.settings);
+      renderPersonaSettingsGrid_(root, App.state.settings);
+    }
+
+    async function handleIdeaDraftRequest_(form) {
+      if (!form) {
+        return;
+      }
+      var briefField = form.querySelector('[data-idea-brief]');
+      var brief = briefField ? briefField.value : '';
+      if (!String(brief || '').trim()) {
+        showToast_('Add a short idea brief first so the Roundtable has something to shape.', 'error');
+        if (briefField) {
+          briefField.focus();
+        }
+        return;
+      }
+
+      setFormBusy_(form, true);
+      try {
+        await requestIdeaDraft_(form, brief, { silentToast: false });
+      } catch (error) {
+        setIdeaDraftStatus_(form, error.message || 'Failed to draft the idea from your brief.', 'error');
+        showToast_(error.message || 'Failed to draft the idea from your brief.', 'error');
+      } finally {
+        setFormBusy_(form, false);
+      }
+    }
+
+    function clearIdeaDraftForm_(form) {
+      if (!form) {
+        return;
+      }
+      var briefField = form.querySelector('[data-idea-brief]');
+      var brief = briefField ? briefField.value : '';
+      populateForm_(form, {
+        Name: '',
+        Summary: '',
+        Category: 'Other',
+        ProblemSolved: '',
+        TargetUsers: '',
+        UniqueValue: '',
+        Tags: '',
+        Stage: 'Spark',
+      });
+      if (briefField) {
+        briefField.value = brief;
+      }
+      hideIdeaDraftStatus_(form);
+      if (briefField) {
+        briefField.focus();
+      }
+    }
+
+    async function handleNewIdeaSubmit_(form) {
+      setFormBusy_(form, true);
+      try {
+        var payload = formToObject_(form);
+        var brief = String(payload.IdeaBrief || '').trim();
+        if ((!String(payload.Name || '').trim() || !String(payload.Summary || '').trim()) && brief) {
+          await requestIdeaDraft_(form, brief, { silentToast: true });
+          payload = formToObject_(form);
+        }
+        delete payload.IdeaBrief;
+        if (!String(payload.Name || '').trim() || !String(payload.Summary || '').trim()) {
+          throw new Error('Add a short brief or fill in the idea name and summary before saving.');
+        }
+        var idea = await AppApi.addIdea(payload);
+        invalidate(['ideas', 'dashboard']);
+        showToast_('New idea captured successfully.', 'success');
+        window.location.hash = '#ideas/' + encodeURIComponent(idea.ID);
+      } catch (error) {
+        showToast_(error.message || 'Failed to create the idea.', 'error');
+      } finally {
+        setFormBusy_(form, false);
+      }
+    }
+
+    async function handleSettingsSubmit_(form) {
+      setFormBusy_(form, true);
+      try {
+        var payload = formToObject_(form);
+        payload.notificationsEnabled = form.querySelector('[name="notificationsEnabled"]').checked ? 'true' : 'false';
+        payload.darkModeEnabled = form.querySelector('[name="darkModeEnabled"]').checked ? 'true' : 'false';
+        payload.personaProfiles = collectPersonaProfilesFromForm_(form);
+        App.state.settings = await AppApi.saveSettings(payload);
+        App.state.personaUploads = {};
+        localStorage.setItem('rtos-theme', App.state.settings.darkModeEnabled === 'true' ? 'dark' : 'light');
+        applyTheme_(App.state.settings.darkModeEnabled === 'true');
+        renderShell_();
+        renderSettings_();
+        showToast_('Settings saved.', 'success');
+      } catch (error) {
+        showToast_(error.message || 'Failed to save settings.', 'error');
+      } finally {
+        setFormBusy_(form, false);
+      }
+    }
+
+    async function handleBrainstormLaunch_(form) {
+      var data = formToObject_(form);
+      var ideaId = data.ideaId;
+      var mode = App.state.ui.brainstormMode;
+      if (!ideaId) {
+        showToast_('Choose an idea before launching a session.', 'error');
+        return;
+      }
+      await startSession_(ideaId, mode);
+    }
+
+    async function startSession_(ideaId, mode) {
+      clearLiveBrainstormEffects_();
+      var session = await AppApi.createSession(ideaId, mode);
+      App.state.activeSession = {
+        sessionId: session.sessionId,
+        ideaId: session.ideaId,
+        ideaName: session.ideaName,
+        mode: session.mode,
+        personas: session.personas || (BRAINSTORM_MODES[session.mode] ? BRAINSTORM_MODES[session.mode].personas.map(function (key) {
+          return { key: key };
+        }) : []),
+        turns: [],
+        nextTurnIndex: 0,
+        complete: false,
+        synthesis: null,
+        synthesisData: null,
+        loading: false,
+        autoplay: true,
+      };
+      window.location.hash = '#brainstorm?sessionId=' + encodeURIComponent(session.sessionId);
+      await loadRoute(false);
+    }
+
+    async function runNextSessionTurn_() {
+      var session = App.state.activeSession;
+      if (!session || session.loading || session.complete || isActiveSessionTyping_()) {
+        clearSessionAutoplayTimer_();
+        return;
+      }
+      clearSessionAutoplayTimer_();
+      session.loading = true;
+      renderBrainstormRoute_(App.state.route || parseHash_(window.location.hash), false);
+
+      try {
+        var previousTurnCount = (session.turns || []).filter(function (turn) {
+          return turn.Agent !== 'Synthesis';
+        }).length;
+        var progress = await AppApi.runNextBrainstormTurn(
+          session.sessionId,
+          session.ideaId,
+          session.mode,
+          session.nextTurnIndex
+        );
+        var autoplay = session.autoplay !== false;
+        App.state.activeSession = hydrateActiveSessionFromProgress_(progress, session.mode);
+        App.state.activeSession.autoplay = autoplay && !App.state.activeSession.complete;
+        invalidate(['sessionHistory', 'dashboard', 'ideas']);
+        await ensureSessionHistory_(true);
+        await ensureDashboard_(true);
+        await ensureIdeas_(true);
+        renderBrainstormRoute_(App.state.route || parseHash_(window.location.hash), false);
+        if (App.state.activeSession) {
+          var latestTurn = getLatestSpokenTurn_(App.state.activeSession);
+          var currentTurnCount = (App.state.activeSession.turns || []).filter(function (turn) {
+            return turn.Agent !== 'Synthesis';
+          }).length;
+          if (latestTurn && currentTurnCount > previousTurnCount) {
+            beginTurnTypewriter_(App.state.activeSession, latestTurn);
+          } else if (App.state.activeSession.complete) {
+            showToast_('Roundtable session complete. Synthesis is ready.', 'success');
+          }
+        }
+      } catch (error) {
+        session.loading = false;
+        session.autoplay = false;
+        App.state.activeSession = session;
+        renderBrainstormRoute_(App.state.route || parseHash_(window.location.hash), false);
+        showToast_(error.message || 'Failed to progress the brainstorm session.', 'error');
+      }
+    }
+
+    async function handleIdeaEditSubmit_(form) {
+      setFormBusy_(form, true);
+      try {
+        var ideaId = form.getAttribute('data-idea-id');
+        var payload = formToObject_(form);
+        await AppApi.updateIdea(ideaId, payload);
+        invalidate(['ideas', 'dashboard']);
+        closeDrawer_();
+        App.state.ui.ideaDetailEditing = false;
+        await loadRoute(true);
+        showToast_('Idea updated.', 'success');
+      } catch (error) {
+        showToast_(error.message || 'Failed to update the idea.', 'error');
+      } finally {
+        setFormBusy_(form, false);
+      }
+    }
+
+    async function handleResourceCreate_(form) {
+      setFormBusy_(form, true);
+      try {
+        await AppApi.addResource(formToObject_(form));
+        invalidate(['resources', 'dashboard']);
+        closeModal_();
+        await loadRoute(true);
+        showToast_('Resource added to the vault.', 'success');
+      } catch (error) {
+        showToast_(error.message || 'Failed to create the resource.', 'error');
+      } finally {
+        setFormBusy_(form, false);
+      }
+    }
+
+    async function handleResourceUpdate_(form) {
+      setFormBusy_(form, true);
+      try {
+        var resourceId = form.getAttribute('data-resource-id');
+        await AppApi.updateResource(resourceId, formToObject_(form));
+        invalidate(['resources', 'dashboard']);
+        closeDrawer_();
+        await loadRoute(true);
+        showToast_('Resource updated.', 'success');
+      } catch (error) {
+        showToast_(error.message || 'Failed to update the resource.', 'error');
+      } finally {
+        setFormBusy_(form, false);
+      }
+    }
+
+    async function handleTaskCreate_(form) {
+      setFormBusy_(form, true);
+      try {
+        await AppApi.addTask(formToObject_(form));
+        invalidate(['tasks', 'dashboard']);
+        closeModal_();
+        await loadRoute(true);
+        showToast_('Task created.', 'success');
+      } catch (error) {
+        showToast_(error.message || 'Failed to create the task.', 'error');
+      } finally {
+        setFormBusy_(form, false);
+      }
+    }
+
+    async function handleTaskUpdate_(form) {
+      setFormBusy_(form, true);
+      try {
+        var taskId = form.getAttribute('data-task-id');
+        await AppApi.updateTask(taskId, formToObject_(form));
+        invalidate(['tasks', 'dashboard']);
+        closeDrawer_();
+        await loadRoute(true);
+        showToast_('Task updated.', 'success');
+      } catch (error) {
+        showToast_(error.message || 'Failed to update the task.', 'error');
+      } finally {
+        setFormBusy_(form, false);
+      }
+    }
+
+    async function handleIdeaDrop_(ideaId, stage) {
+      if (!ideaId || !stage) {
+        return;
+      }
+      var idea = (App.state.ideas || []).find(function (item) {
+        return item.ID === ideaId;
+      });
+      if (!idea || idea.Stage === stage) {
+        return;
+      }
+      var previousStage = idea.Stage;
+      idea.Stage = stage;
+      renderIdeas_();
+      try {
+        await AppApi.updateIdea(ideaId, { Stage: stage });
+        invalidate(['dashboard']);
+        await ensureDashboard_(true);
+        showToast_('Idea moved to ' + stage + '.', 'success');
+      } catch (error) {
+        idea.Stage = previousStage;
+        renderIdeas_();
+        showToast_(error.message || 'Failed to move the idea.', 'error');
+      }
+    }
+
+    async function handleTaskDrop_(taskId, status) {
+      if (!taskId || !status) {
+        return;
+      }
+      var task = (App.state.tasks || []).find(function (item) {
+        return item.TaskID === taskId;
+      });
+      if (!task || task.Status === status) {
+        return;
+      }
+      var previousStatus = task.Status;
+      task.Status = status;
+      renderTasks_();
+      try {
+        await AppApi.updateTaskStatus(taskId, status);
+        invalidate(['dashboard']);
+        await ensureDashboard_(true);
+        showToast_('Task moved to ' + TASK_STATUS_LABELS[status] + '.', 'success');
+      } catch (error) {
+        task.Status = previousStatus;
+        renderTasks_();
+        showToast_(error.message || 'Failed to update the task status.', 'error');
+      }
+    }
+
+    async function openIdeaDrawer_(ideaId) {
+      var bundle = await AppApi.getIdeaDetailBundle(ideaId);
+      openDrawer_([
+        '<div class="h-full flex flex-col bg-surface-container-lowest">',
+        '<div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-outline-variant/15">',
+        '<div class="space-y-2">',
+        renderStageBadge_(bundle.idea.Stage),
+        '<h2 class="font-headline text-3xl font-bold tracking-tight">',
+        escapeHtml_(bundle.idea.Name),
+        '</h2>',
+        '<p class="text-on-surface-variant">',
+        escapeHtml_(bundle.idea.Summary || ''),
+        '</p>',
+        '</div>',
+        '<button type="button" data-action="close-drawer" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined">close</span></button>',
+        '</div>',
+        '<div class="p-6 overflow-y-auto hide-scrollbar space-y-6">',
+        '<div class="editorial-card p-5 space-y-4">',
+        '<div class="flex items-center justify-between"><div class="font-headline text-2xl font-bold tracking-tight">Quick Edit</div><button type="button" data-nav="#ideas/',
+        escapeHtml_(bundle.idea.ID),
+        '" class="text-primary text-sm font-medium hover:underline">Open full page</button></div>',
+        renderIdeaEditForm_(bundle.idea, 'idea-drawer-edit-form'),
+        '</div>',
+        '<div class="editorial-card p-5 space-y-3">',
+        '<div class="font-headline text-2xl font-bold tracking-tight">Score Breakdown</div>',
+        renderScoreMeter_(bundle.scoreBreakdown.priority),
+        '<div class="grid grid-cols-2 gap-4 text-sm">',
+        '<div><div class="text-on-surface-variant">Usefulness</div><div class="font-headline text-2xl font-bold">' + scoreToPercent_(bundle.scoreBreakdown.usefulness) + '</div></div>',
+        '<div><div class="text-on-surface-variant">Uniqueness</div><div class="font-headline text-2xl font-bold">' + scoreToPercent_(bundle.scoreBreakdown.uniqueness) + '</div></div>',
+        '</div>',
+        '<div class="text-sm text-on-surface-variant"><strong class="text-on-surface">Next action:</strong> ' + escapeHtml_(bundle.idea.NextAction || 'Not set yet.') + '</div>',
+        '</div>',
+        '<div class="editorial-card p-5 space-y-4">',
+        '<div class="flex items-center justify-between"><div class="font-headline text-2xl font-bold tracking-tight">Linked Work</div><button type="button" data-nav="#brainstorm?ideaId=' + escapeHtml_(bundle.idea.ID) + '" class="text-primary text-sm font-medium hover:underline">Launch brainstorm</button></div>',
+        '<div class="text-sm text-on-surface-variant">Sessions: ' + String(bundle.sessions.length) + ' • Tasks: ' + String(bundle.tasks.length) + ' • Resources: ' + String(bundle.resources.length) + '</div>',
+        '</div>',
+        '</div>',
+        '</div>',
+      ].join(''));
+    }
+
+    async function openResourceDrawer_(resourceId) {
+      await ensureIdeas_(false);
+      var resource = (App.state.resources || []).find(function (item) {
+        return item.ID === resourceId;
+      });
+      if (!resource) {
+        showToast_('Resource not found.', 'error');
+        return;
+      }
+      openDrawer_([
+        '<div class="h-full flex flex-col bg-surface-container-lowest">',
+        '<div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-outline-variant/15">',
+        '<div class="space-y-2"><div class="font-headline text-3xl font-bold tracking-tight">',
+        escapeHtml_(resource.Title),
+        '</div><p class="text-on-surface-variant">',
+        escapeHtml_(resource.Description || 'No description yet.'),
+        '</p></div>',
+        '<button type="button" data-action="close-drawer" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined">close</span></button>',
+        '</div>',
+        '<div class="p-6 overflow-y-auto hide-scrollbar">',
+        '<div class="editorial-card p-5">',
+        renderResourceEditForm_(resource),
+        '</div>',
+        '</div>',
+        '</div>',
+      ].join(''));
+    }
+
+    async function openTaskDrawer_(taskId) {
+      await ensureIdeas_(false);
+      var task = (App.state.tasks || []).find(function (item) {
+        return item.TaskID === taskId;
+      });
+      if (!task) {
+        showToast_('Task not found.', 'error');
+        return;
+      }
+      openDrawer_([
+        '<div class="h-full flex flex-col bg-surface-container-lowest">',
+        '<div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-outline-variant/15">',
+        '<div class="space-y-2"><div class="font-headline text-3xl font-bold tracking-tight">',
+        escapeHtml_(task.Title),
+        '</div><p class="text-on-surface-variant">',
+        escapeHtml_(task.IdeaName || 'Unlinked task'),
+        '</p></div>',
+        '<button type="button" data-action="close-drawer" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined">close</span></button>',
+        '</div>',
+        '<div class="p-6 overflow-y-auto hide-scrollbar space-y-6">',
+        '<div class="editorial-card p-5">',
+        renderTaskEditForm_(task),
+        '</div>',
+        '<button type="button" data-action="delete-task" data-task-id="',
+        escapeHtml_(task.TaskID),
+        '" class="px-4 py-3 rounded-lg bg-error-container text-on-error-container font-medium hover:opacity-90 transition-all duration-200 ease-in-out">Delete task</button>',
+        '</div>',
+        '</div>',
+      ].join(''));
+    }
+
+    function renderDrawer_() {
+      var root = document.getElementById('drawer-root');
+      if (!App.state.drawerHtml) {
+        root.classList.add('pointer-events-none');
+        root.innerHTML = '';
+        return;
+      }
+      root.classList.remove('pointer-events-none');
+      root.innerHTML = [
+        '<div class="absolute inset-0 bg-on-surface/20" data-action="close-drawer"></div>',
+        '<aside class="drawer-panel open absolute inset-y-0 right-0 w-full max-w-xl bg-surface-container-lowest ambient-shadow">',
+        App.state.drawerHtml,
+        '</aside>',
+      ].join('');
+    }
+
+    function openDrawer_(html) {
+      App.state.drawerHtml = html;
+      renderDrawer_();
+    }
+
+    function closeDrawer_() {
+      App.state.drawerHtml = '';
+      renderDrawer_();
+    }
+
+    function renderModal_() {
+      var root = document.getElementById('modal-root');
+      if (!App.state.modalHtml) {
+        root.classList.add('pointer-events-none');
+        root.innerHTML = '';
+        return;
+      }
+      root.classList.remove('pointer-events-none');
+      root.innerHTML = [
+        '<div class="absolute inset-0 bg-on-surface/25"></div>',
+        '<div class="absolute inset-0 overflow-y-auto hide-scrollbar">',
+        App.state.modalHtml,
+        '</div>',
+      ].join('');
+    }
+
+    function openModal_(html) {
+      App.state.modalHtml = html;
+      renderModal_();
+    }
+
+    function closeModal_() {
+      App.state.modalHtml = '';
+      renderModal_();
+    }
+
+    async function testConnection_() {
+      var root = document.getElementById('route-outlet');
+      var form = root.querySelector('#settings-form');
+      var status = root.querySelector('[data-settings-api-status]');
+      var payload = form ? formToObject_(form) : {};
+      var provider = normalizeClientProviderName_(payload.activeLlmProvider || (App.state.settings || {}).activeLlmProvider);
+      var providerLabel = getClientProviderLabel_(provider);
+      if (status) {
+        status.textContent = 'Testing ' + providerLabel + '...';
+      }
+      try {
+        var result = await AppApi.testLLMConnection(payload);
+        if (status) {
+          status.textContent = result.ok
+            ? getClientProviderLabel_(result.provider) + ' responded using ' + result.model + '.'
+            : 'Test failed: ' + result.error;
+        }
+        showToast_(
+          result.ok ? getClientProviderLabel_(result.provider) + ' connection succeeded.' : 'Connection test failed.',
+          result.ok ? 'success' : 'error'
+        );
+      } catch (error) {
+        if (status) {
+          status.textContent = error.message || 'Connection test failed.';
+        }
+        showToast_(error.message || 'Connection test failed.', 'error');
+      }
+    }
+
+    function syncSettingsProviderUi_(form, settings) {
+      if (!(form instanceof HTMLFormElement)) {
+        return;
+      }
+
+      var provider = normalizeClientProviderName_(
+        (form.querySelector('[name="activeLlmProvider"]') || {}).value || settings.activeLlmProvider
+      );
+      var status = document.querySelector('[data-settings-api-status]');
+      var keyStateMap = {
+        deepseek: !!settings.hasDeepSeekApiKey,
+        gemini: !!settings.hasGeminiApiKey,
+        openrouter: !!settings.hasOpenRouterApiKey,
+        openai: !!settings.hasOpenAiApiKey,
+        anthropic: !!settings.hasAnthropicApiKey,
+      };
+
+      Array.prototype.forEach.call(form.querySelectorAll('[data-provider-card]'), function (card) {
+        var cardProvider = normalizeClientProviderName_(card.getAttribute('data-provider-card'));
+        card.className =
+          'rounded-xl p-5 ghost-border space-y-4 transition-all duration-200 ease-in-out ' +
+          (cardProvider === provider
+            ? 'bg-surface-container-lowest ambient-shadow ring-1 ring-primary/20'
+            : 'bg-surface-container-low');
+      });
+
+      Array.prototype.forEach.call(form.querySelectorAll('[data-provider-key-status]'), function (node) {
+        var cardProvider = normalizeClientProviderName_(node.getAttribute('data-provider-key-status'));
+        var providerLabel = getClientProviderLabel_(cardProvider);
+        var hasStoredKey = keyStateMap[cardProvider];
+        node.textContent = hasStoredKey
+          ? providerLabel + ' already has a stored server key. Leave the field blank to keep it.'
+          : 'No stored ' + providerLabel + ' key yet.';
+      });
+
+      if (status) {
+        status.textContent = keyStateMap[provider]
+          ? getClientProviderLabel_(provider) + ' is ready for a live connection test.'
+          : getClientProviderLabel_(provider) + ' still needs an API key before live calls will work.';
+      }
+    }
+
+    function renderPersonaSettingsGrid_(root, settings) {
+      var grid = root.querySelector('[data-persona-settings-grid]');
+      if (!grid) {
+        return;
+      }
+      var personaKeys = ['Kai', 'Nova', 'Rex', 'Sage', 'Luna', 'Nia'];
+      grid.innerHTML = personaKeys
+        .map(function (personaKey) {
+          return renderPersonaSettingsCard_(personaKey, settings || {});
+        })
+        .join('');
+    }
+
+    function renderPersonaSettingsCard_(personaKey, settings) {
+      var uploadState = (App.state.personaUploads && App.state.personaUploads[personaKey]) || {};
+      var visual = getPersonaVisual_(personaKey, {
+        displayName:
+          settings &&
+          settings.personaProfiles &&
+          settings.personaProfiles[personaKey] &&
+          settings.personaProfiles[personaKey].displayName
+            ? settings.personaProfiles[personaKey].displayName
+            : personaKey,
+        avatarDataUrl: uploadState.avatarDataUrl
+          ? uploadState.avatarDataUrl
+          : uploadState.clearAvatar
+            ? ''
+            : settings &&
+                settings.personaProfiles &&
+                settings.personaProfiles[personaKey] &&
+                settings.personaProfiles[personaKey].avatarDataUrl
+              ? settings.personaProfiles[personaKey].avatarDataUrl
+              : '',
+      });
+      var avatarStatus = uploadState.avatarDataUrl
+        ? 'New portrait ready. Save settings to make it live across the app.'
+        : uploadState.clearAvatar
+          ? 'Portrait will be removed when you save settings.'
+          : visual.hasAvatar
+            ? 'Current portrait is already live in the transcript and voice list.'
+            : 'No portrait uploaded yet. The default initial badge will be used.';
+      return [
+        '<article data-persona-card data-persona-key="',
+        escapeHtml_(personaKey),
+        '" class="rounded-xl bg-surface-container-low p-5 ghost-border space-y-5">',
+        '<div class="flex items-start gap-4">',
+        '<div data-persona-preview>',
+        renderPersonaAvatarBadge_(personaKey, 'w-16 h-16 text-lg', '', {
+          displayName: visual.label,
+          avatarDataUrl: visual.avatarDataUrl,
+        }),
+        '</div>',
+        '<div class="min-w-0 flex-1 space-y-1">',
+        '<div class="flex items-center gap-2 flex-wrap">',
+        '<h3 class="font-headline text-xl font-bold tracking-tight">',
+        escapeHtml_(visual.label),
+        '</h3>',
+        '<span class="px-2 py-1 rounded-full text-[10px] uppercase tracking-[0.12em] bg-surface-container-highest text-on-surface-variant">',
+        escapeHtml_(personaKey),
+        '</span>',
+        '</div>',
+        '<p class="text-sm text-on-surface-variant">',
+        escapeHtml_(visual.role),
+        '</p>',
+        '<p class="text-xs text-on-surface-variant">Shown in brainstorm transcripts, voice lists, and loading states.</p>',
+        '</div>',
+        '</div>',
+        '<div class="grid gap-4">',
+        '<label class="space-y-2 block">',
+        '<span class="text-xs uppercase tracking-[0.12em] font-medium">Display Name</span>',
+        '<input data-persona-name-input type="text" value="',
+        escapeHtml_(visual.label),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" />',
+        '</label>',
+        '<label class="space-y-2 block">',
+        '<span class="text-xs uppercase tracking-[0.12em] font-medium">Portrait Image</span>',
+        '<input data-persona-avatar-input data-persona-key="',
+        escapeHtml_(personaKey),
+        '" type="file" accept="image/*" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 text-sm focus-ring" />',
+        '</label>',
+        '<div class="flex items-center justify-between gap-3">',
+        '<div data-persona-avatar-status class="text-xs text-on-surface-variant">',
+        escapeHtml_(avatarStatus),
+        '</div>',
+        '<button type="button" data-action="clear-persona-avatar" data-persona-key="',
+        escapeHtml_(personaKey),
+        '" class="shrink-0 px-3 py-2 rounded-lg ghost-border text-on-surface-variant text-sm font-medium hover:bg-surface-container-high transition-all duration-200 ease-in-out">',
+        visual.hasAvatar || uploadState.avatarDataUrl ? 'Remove Portrait' : 'Use Initial',
+        '</button>',
+        '</div>',
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function collectPersonaProfilesFromForm_(form) {
+      var profiles = {};
+      Array.prototype.forEach.call(form.querySelectorAll('[data-persona-card]'), function (card) {
+        var key = card.getAttribute('data-persona-key');
+        var uploadState = (App.state.personaUploads && App.state.personaUploads[key]) || {};
+        var nameInput = card.querySelector('[data-persona-name-input]');
+        profiles[key] = {
+          key: key,
+          displayName: nameInput ? nameInput.value : key,
+          clearAvatar: uploadState.clearAvatar ? 'true' : 'false',
+        };
+        if (uploadState.avatarDataUrl) {
+          profiles[key].avatarDataUrl = uploadState.avatarDataUrl;
+        }
+      });
+      return profiles;
+    }
+
+    async function handlePersonaAvatarInput_(input) {
+      var file = input && input.files && input.files[0];
+      if (!file) {
+        return;
+      }
+      var card = input.closest('[data-persona-card]');
+      if (!card) {
+        return;
+      }
+      var personaKey = card.getAttribute('data-persona-key');
+      try {
+        var avatarDataUrl = await compressPersonaAvatarFile_(file);
+        App.state.personaUploads = App.state.personaUploads || {};
+        App.state.personaUploads[personaKey] = {
+          avatarDataUrl: avatarDataUrl,
+          clearAvatar: false,
+          fileName: file.name,
+        };
+        updatePersonaSettingsCardPreview_(card);
+        showToast_('Portrait queued for ' + getPersonaLabel_(personaKey) + '.', 'success');
+      } catch (error) {
+        showToast_(error.message || 'That image could not be prepared for upload.', 'error');
+      } finally {
+        input.value = '';
+      }
+    }
+
+    function handlePersonaAvatarClear_(trigger) {
+      var card = trigger.closest('[data-persona-card]');
+      if (!card) {
+        return;
+      }
+      var personaKey = card.getAttribute('data-persona-key');
+      App.state.personaUploads = App.state.personaUploads || {};
+      App.state.personaUploads[personaKey] = {
+        clearAvatar: true,
+        avatarDataUrl: '',
+      };
+      updatePersonaSettingsCardPreview_(card);
+      showToast_('Portrait reset for ' + getPersonaLabel_(personaKey) + '. Save settings to apply it.', 'success');
+    }
+
+    function updatePersonaSettingsCardPreview_(card) {
+      if (!card) {
+        return;
+      }
+      var personaKey = card.getAttribute('data-persona-key');
+      var nameInput = card.querySelector('[data-persona-name-input]');
+      var profile =
+        App.state.settings &&
+        App.state.settings.personaProfiles &&
+        App.state.settings.personaProfiles[personaKey]
+          ? App.state.settings.personaProfiles[personaKey]
+          : {};
+      var uploadState = (App.state.personaUploads && App.state.personaUploads[personaKey]) || {};
+      var visual = getPersonaVisual_(personaKey, {
+        displayName: nameInput && nameInput.value ? nameInput.value : profile.displayName || personaKey,
+        avatarDataUrl: uploadState.avatarDataUrl
+          ? uploadState.avatarDataUrl
+          : uploadState.clearAvatar
+            ? ''
+            : profile.avatarDataUrl || '',
+      });
+      var preview = card.querySelector('[data-persona-preview]');
+      if (preview) {
+        preview.innerHTML = renderPersonaAvatarBadge_(personaKey, 'w-16 h-16 text-lg', '', {
+          displayName: visual.label,
+          avatarDataUrl: visual.avatarDataUrl,
+        });
+      }
+      var title = card.querySelector('h3');
+      if (title) {
+        title.textContent = visual.label;
+      }
+      var status = card.querySelector('[data-persona-avatar-status]');
+      if (status) {
+        status.textContent = uploadState.avatarDataUrl
+          ? 'New portrait ready. Save settings to make it live across the app.'
+          : uploadState.clearAvatar
+            ? 'Portrait will be removed when you save settings.'
+            : visual.hasAvatar
+              ? 'Current portrait is already live in the transcript and voice list.'
+              : 'No portrait uploaded yet. The default initial badge will be used.';
+      }
+      var clearButton = card.querySelector('[data-action="clear-persona-avatar"]');
+      if (clearButton) {
+        clearButton.textContent = visual.hasAvatar || uploadState.avatarDataUrl ? 'Remove Portrait' : 'Use Initial';
+      }
+    }
+
+    async function compressPersonaAvatarFile_(file) {
+      if (!file || String(file.type || '').indexOf('image/') !== 0) {
+        throw new Error('Choose an image file for the persona portrait.');
+      }
+      var sourceDataUrl = await readFileAsDataUrl_(file);
+      var image = await loadImageElement_(sourceDataUrl);
+      var longestEdge = Math.max(image.naturalWidth || image.width || 0, image.naturalHeight || image.height || 0) || 1;
+      var scale = Math.min(1, 256 / longestEdge);
+      var width = Math.max(96, Math.round((image.naturalWidth || image.width || 256) * scale));
+      var height = Math.max(96, Math.round((image.naturalHeight || image.height || 256) * scale));
+      var canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      var context = canvas.getContext('2d');
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(image, 0, 0, width, height);
+      var output = canvas.toDataURL('image/jpeg', 0.86);
+      if (output.length > 260000) {
+        output = canvas.toDataURL('image/jpeg', 0.72);
+      }
+      return output;
+    }
+
+    function readFileAsDataUrl_(file) {
+      return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          resolve(String(reader.result || ''));
+        };
+        reader.onerror = function () {
+          reject(new Error('The selected image could not be read.'));
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function loadImageElement_(dataUrl) {
+      return new Promise(function (resolve, reject) {
+        var image = new Image();
+        image.onload = function () {
+          resolve(image);
+        };
+        image.onerror = function () {
+          reject(new Error('The selected image could not be prepared for preview.'));
+        };
+        image.src = dataUrl;
+      });
+    }
+
+    function normalizeClientProviderName_(provider) {
+      var normalized = String(provider || '')
+        .toLowerCase()
+        .replace(/[^a-z]/g, '');
+      if (normalized === 'openrouter') {
+        return 'openrouter';
+      }
+      if (normalized === 'deepseek') {
+        return 'deepseek';
+      }
+      if (normalized === 'openai') {
+        return 'openai';
+      }
+      if (normalized === 'anthropic') {
+        return 'anthropic';
+      }
+      if (normalized === 'gemini' || normalized === 'google') {
+        return 'gemini';
+      }
+      return 'gemini';
+    }
+
+    function getClientProviderLabel_(provider) {
+      provider = normalizeClientProviderName_(provider);
+      return SETTINGS_PROVIDER_META[provider] ? SETTINGS_PROVIDER_META[provider].label : 'Provider';
+    }
+
+    async function confirmIdeaArchive_(ideaId) {
+      var idea = (App.state.ideas || []).find(function (item) {
+        return item.ID === ideaId;
+      });
+      openModal_(
+        renderConfirmModal_(
+          'Archive idea?',
+          'This will move "' + (idea ? idea.Name : 'this idea') + '" into the Archived stage.',
+          'confirm-archive-idea',
+          'Archive idea',
+          ideaId
+        )
+      );
+    }
+
+    function renderConfirmModal_(title, message, action, confirmLabel, recordId) {
+      return [
+        '<div class="pointer-events-auto mx-auto max-w-lg w-full mt-20 bg-surface-container-lowest rounded-xl ambient-shadow p-7 space-y-5">',
+        '<div class="flex items-start justify-between gap-4">',
+        '<div class="space-y-1"><h2 class="font-headline text-2xl font-bold tracking-tight">',
+        escapeHtml_(title),
+        '</h2><p class="text-on-surface-variant">',
+        escapeHtml_(message),
+        '</p></div>',
+        '<button type="button" data-action="close-modal" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined">close</span></button>',
+        '</div>',
+        '<div class="flex justify-end gap-3">',
+        '<button type="button" data-action="close-modal" class="px-4 py-2.5 rounded-lg ghost-border text-primary font-medium">Cancel</button>',
+        '<button type="button" data-action="',
+        escapeHtml_(action),
+        '" ',
+        recordId ? 'data-task-id="' + escapeHtml_(recordId) + '" data-idea-id="' + escapeHtml_(recordId) + '"' : '',
+        ' class="px-4 py-2.5 rounded-lg bg-gradient-primary text-on-primary font-medium">',
+        escapeHtml_(confirmLabel),
+        '</button>',
+        '</div>',
+        '</div>',
+      ].join('');
+    }
+
+    function renderResourceCreateModal_() {
+      return [
+        '<div class="pointer-events-auto mx-auto max-w-3xl w-full mt-16 bg-surface-container-lowest rounded-xl ambient-shadow p-7 space-y-6">',
+        '<div class="flex items-start justify-between gap-4">',
+        '<div class="space-y-1"><h2 class="font-headline text-3xl font-bold tracking-tight">Add Resource</h2><p class="text-on-surface-variant">Capture a tool, model, link, book, or dataset and connect it back to active ideas.</p></div>',
+        '<button type="button" data-action="close-modal" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined">close</span></button>',
+        '</div>',
+        renderResourceForm_('resource-create-form', null),
+        '</div>',
+      ].join('');
+    }
+
+    function renderTaskCreateModal_(defaultStatus, defaultIdeaId) {
+      return [
+        '<div class="pointer-events-auto mx-auto max-w-3xl w-full mt-16 bg-surface-container-lowest rounded-xl ambient-shadow p-7 space-y-6">',
+        '<div class="flex items-start justify-between gap-4">',
+        '<div class="space-y-1"><h2 class="font-headline text-3xl font-bold tracking-tight">Create Task</h2><p class="text-on-surface-variant">Add a concrete next step to the execution board.</p></div>',
+        '<button type="button" data-action="close-modal" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined">close</span></button>',
+        '</div>',
+        renderTaskForm_('task-create-form', { Status: defaultStatus || 'Todo', IdeaID: defaultIdeaId || '' }),
+        '</div>',
+      ].join('');
+    }
+
+    function renderIdeaDetailMain_(bundle) {
+      if (App.state.ui.ideaDetailTab === 'sessions') {
+        return bundle.sessions.length
+          ? '<div class="space-y-4">' +
+              bundle.sessions.map(function (session) { return renderSessionHistoryCard_(session); }).join('') +
+            '</div>'
+          : '<div class="editorial-card p-6 text-on-surface-variant">No brainstorm sessions have been recorded for this idea yet.</div>';
+      }
+
+      if (App.state.ui.ideaDetailTab === 'tasks') {
+        return [
+          '<section class="space-y-6">',
+          '<div class="flex items-center justify-between">',
+          '<h2 class="font-headline text-3xl font-bold tracking-tight">Tasks & Plan</h2>',
+          '<button type="button" data-action="open-task-modal" data-default-status="Todo" data-default-idea-id="' +
+            escapeHtml_(bundle.idea.ID) +
+            '" class="px-4 py-2.5 rounded-lg ghost-border text-primary font-medium">Add task</button>',
+          '</div>',
+          bundle.tasks.length
+            ? '<div class="space-y-4">' + bundle.tasks.map(renderTaskListCard_).join('') + '</div>'
+            : '<div class="editorial-card p-6 text-on-surface-variant">No tasks are linked to this idea yet.</div>',
+          '<section class="space-y-4"><h3 class="font-headline text-2xl font-bold tracking-tight">Related Resources</h3>',
+          bundle.resources.length
+            ? '<div class="grid gap-4">' + bundle.resources.map(renderResourceCompactCard_).join('') + '</div>'
+            : '<div class="editorial-card p-6 text-on-surface-variant">No related resources yet.</div>',
+          '</section>',
+          '</section>',
+        ].join('');
+      }
+
+      return [
+        App.state.ui.ideaDetailEditing
+          ? '<section class="editorial-card p-7">' + renderIdeaEditForm_(bundle.idea, 'idea-page-edit-form') + '</section>'
+          : '',
+        '<section class="editorial-card p-7 space-y-4">',
+        '<h2 class="font-headline text-3xl font-bold tracking-tight">Core Hypothesis</h2>',
+        '<div class="bg-surface-container-low rounded-lg p-5 text-xl leading-relaxed text-on-surface-variant">',
+        escapeHtml_(bundle.idea.ProblemSolved || bundle.idea.Summary || 'No core hypothesis has been written yet.'),
+        '</div>',
+        '</section>',
+        '<section class="grid md:grid-cols-2 gap-6">',
+        renderOverviewBlock_('Target Users', bundle.idea.TargetUsers || 'Not specified yet.'),
+        renderOverviewBlock_('Unique Value', bundle.idea.UniqueValue || 'Not specified yet.'),
+        renderOverviewBlock_('Category', bundle.idea.Category || 'Other'),
+        renderOverviewBlock_('Next Action', bundle.idea.NextAction || 'No next action yet.'),
+        '</section>',
+        '<section class="space-y-4">',
+        '<div class="flex items-center justify-between"><h2 class="font-headline text-3xl font-bold tracking-tight">Recent Brainstorm Session</h2><button type="button" data-nav="#brainstorm?ideaId=',
+        escapeHtml_(bundle.idea.ID),
+        '" class="text-primary text-sm font-medium hover:underline">Launch another session</button></div>',
+        bundle.recentSession && bundle.recentSession.turns && bundle.recentSession.turns.length
+          ? '<div class="editorial-card p-7 space-y-6">' +
+              bundle.recentSession.turns
+                .slice(0, 3)
+                .map(function (turn) {
+                  return renderPersonaBubble_(turn);
+                })
+                .join('') +
+            '</div>'
+          : '<div class="editorial-card p-6 text-on-surface-variant">No brainstorm transcript yet.</div>',
+        '</section>',
+      ].join('');
+    }
+
+    function renderIdeaScorePanel_(bundle) {
+      return [
+        '<div class="space-y-1"><h2 class="font-headline text-2xl font-bold tracking-tight">Viability Score</h2><p class="text-on-surface-variant text-sm">Priority is derived from usefulness and uniqueness heuristics.</p></div>',
+        renderScoreMeter_(bundle.scoreBreakdown.priority),
+        '<div class="space-y-3">',
+        '<div class="flex items-center justify-between text-sm"><span class="text-on-surface-variant">Usefulness</span><span class="font-headline font-bold">',
+        scoreToPercent_(bundle.scoreBreakdown.usefulness),
+        '</span></div>',
+        '<div class="flex items-center justify-between text-sm"><span class="text-on-surface-variant">Uniqueness</span><span class="font-headline font-bold">',
+        scoreToPercent_(bundle.scoreBreakdown.uniqueness),
+        '</span></div>',
+        '</div>',
+        '<div class="bg-surface-container-low rounded-lg p-4 text-sm text-on-surface-variant"><strong class="text-on-surface">Next action:</strong> ',
+        escapeHtml_(bundle.idea.NextAction || 'Not generated yet.'),
+        '</div>',
+      ].join('');
+    }
+
+    function renderIdeaSideResources_(bundle) {
+      return [
+        '<div class="space-y-1"><h2 class="font-headline text-2xl font-bold tracking-tight">Resources</h2><p class="text-on-surface-variant text-sm">Assets already linked to this idea.</p></div>',
+        bundle.resources.length
+          ? bundle.resources.map(renderResourceCompactCard_).join('')
+          : '<div class="text-on-surface-variant text-sm">No linked resources yet.</div>',
+      ].join('');
+    }
+
+    function renderBrainstormSession_(session) {
+      var idea = (App.state.ideas || []).find(function (item) {
+        return item.ID === session.ideaId;
+      }) || { Name: session.ideaName || 'Untitled idea', Stage: 'Spark', Summary: '' };
+
+      var synthesis = session.synthesisData || parseSynthesis_(session.synthesis && session.synthesis.Content ? session.synthesis.Content : '');
+      var voices = detectBrainstormPersonas_(session.personas);
+      var nextPersona = nextPersonaForSession_(session);
+      var nextPersonaLabel = getPersonaLabel_(nextPersona);
+      var heardCount = (session.turns || []).filter(function (turn) {
+        return turn.Agent !== 'Synthesis';
+      }).length;
+      var autoplayLive = !session.complete && session.autoplay !== false;
+      return [
+        '<div class="grid xl:grid-cols-[minmax(0,1fr)_340px] gap-8 items-start">',
+        '<div class="space-y-8">',
+        '<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">',
+        '<div class="space-y-3">',
+        '<div class="flex items-center gap-3 flex-wrap">',
+        '<div class="font-headline text-3xl font-bold tracking-tight">Active Session: ',
+        escapeHtml_(idea.Name),
+        '</div>',
+        renderStageBadge_(idea.Stage),
+        '<span class="px-3 py-1 rounded-full bg-surface-container-highest text-sm text-on-surface-variant">',
+        escapeHtml_(session.mode || 'Full Roundtable'),
+        '</span>',
+        '</div>',
+        '<p class="text-on-surface-variant text-lg">',
+        escapeHtml_(idea.Summary || 'A live brainstorm session is in progress.'),
+        '</p>',
+        '</div>',
+        '<div class="editorial-card p-5 min-w-[280px] space-y-3">',
+        '<div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant font-medium">Live Flow</div>',
+        '<div class="flex items-center gap-3">',
+        session.complete
+          ? renderPersonaAvatarBadge_('Synthesis', 'w-10 h-10 text-sm', '')
+          : renderPersonaAvatarBadge_(
+              nextPersona,
+              'w-10 h-10 text-sm',
+              autoplayLive && !session.loading ? 'avatar-pulse' : ''
+            ),
+        '<div class="space-y-1">',
+        '<div class="font-headline text-lg font-bold tracking-tight">',
+        session.complete ? 'Synthesis ready' : autoplayLive ? escapeHtml_(nextPersonaLabel) + ' is up next' : 'Autoplay paused',
+        '</div>',
+        '<div class="text-sm text-on-surface-variant">',
+        session.complete
+          ? 'The roundtable finished and the recommendation is ready.'
+          : autoplayLive
+            ? 'Each persona will speak automatically, one after another.'
+            : 'Resume autoplay or advance one voice manually.',
+        '</div>',
+        '</div>',
+        '</div>',
+        '</div>',
+        '</div>',
+        '<div class="editorial-card p-7 space-y-6">',
+        '<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">',
+        '<div class="space-y-2">',
+        '<div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant">Live Transcript</div>',
+        '<div class="font-headline text-2xl font-bold tracking-tight">',
+        escapeHtml_(String(heardCount)),
+        ' of ',
+        escapeHtml_(String(voices.length || 0)),
+        ' voices have spoken</div>',
+        '</div>',
+        '<div class="w-full max-w-xs space-y-2">',
+        '<div class="h-2 rounded-full bg-surface-container-highest overflow-hidden"><div class="h-full bg-gradient-primary rounded-full transition-all duration-300 ease-in-out" style="width:',
+        escapeHtml_(String(Math.max(4, Math.round((heardCount / Math.max(voices.length || 1, 1)) * 100)))),
+        '%"></div></div>',
+        '<div class="text-sm text-on-surface-variant text-right">',
+        session.complete
+          ? 'Session complete'
+          : session.loading
+            ? escapeHtml_(nextPersonaLabel) + ' is thinking...'
+            : autoplayLive
+              ? 'Autoplay is on'
+              : 'Waiting for manual resume',
+        '</div>',
+        '</div>',
+        '</div>',
+        '<div class="space-y-6 max-h-[620px] overflow-y-auto hide-scrollbar pr-2">',
+        session.turns.length
+          ? session.turns.map(renderPersonaBubble_).join('') +
+            (session.complete ? '' : renderLoadingTurn_(nextPersona, session.loading ? 'thinking' : session.autoplay === false ? 'paused' : 'queued'))
+          : renderLoadingTurn_(nextPersona, session.loading ? 'thinking' : session.autoplay === false ? 'paused' : 'queued'),
+        '</div>',
+        '</div>',
+        session.complete
+          ? '<div class="flex flex-wrap gap-3 justify-end"><button type="button" data-action="accept-recommendation" class="px-4 py-3 rounded-lg bg-gradient-primary text-on-primary font-medium">Accept Recommendation</button><button type="button" data-action="save-close-session" class="px-4 py-3 rounded-lg ghost-border text-primary font-medium">Save & Close</button><button type="button" data-action="run-session-again" class="px-4 py-3 rounded-lg bg-surface-container-highest text-on-surface font-medium">Run Again</button></div>'
+          : session.autoplay === false
+            ? '<div class="flex flex-wrap gap-3 justify-end"><button type="button" data-action="resume-session-autoplay" class="px-4 py-3 rounded-lg bg-gradient-primary text-on-primary font-medium">Resume Live Session</button><button type="button" data-action="run-next-persona-turn" class="px-4 py-3 rounded-lg bg-surface-container-highest text-on-surface font-medium">' + (session.loading ? 'Working...' : 'Advance One Voice') + '</button></div>'
+            : '<div class="flex justify-end"><button type="button" data-action="pause-session-autoplay" class="px-4 py-3 rounded-lg ghost-border text-primary font-medium">Pause Autoplay</button></div>',
+        '</div>',
+        '<aside class="space-y-6">',
+        '<div class="editorial-card p-6 space-y-4">',
+        '<div><h2 class="font-headline text-2xl font-bold tracking-tight">Session Synthesis</h2><p class="text-on-surface-variant text-sm">Real-time thematic extraction</p></div>',
+        synthesis.summary
+          ? '<div class="bg-surface-container-low rounded-lg p-4 space-y-4"><div><div class="text-xs uppercase tracking-[0.12em] text-primary font-medium">Leading concept</div><div class="font-headline text-xl font-bold tracking-tight mt-2">' + escapeHtml_(synthesis.summary) + '</div></div><div class="text-sm text-on-surface-variant"><strong class="text-on-surface">Next action:</strong> ' + escapeHtml_(synthesis.nextAction || 'Waiting for synthesis...') + '</div><div class="text-sm text-on-surface-variant"><strong class="text-on-surface">Suggested stage:</strong> ' + escapeHtml_(synthesis.suggestedStage || idea.Stage) + '</div></div>'
+          : '<div class="bg-surface-container-low rounded-lg p-4 text-sm text-on-surface-variant">A synthesis will appear automatically after the final persona turn.</div>',
+        '</div>',
+        '<div class="editorial-card p-6 space-y-4">',
+        '<div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant">Voices in room</div>',
+        '<div class="space-y-3">',
+        voices.map(function (persona, index) {
+          var meta = getPersonaVisual_(persona);
+          var heard = session.complete || index < session.nextTurnIndex;
+          var next = !session.complete && persona === nextPersona;
+          return '<div class="flex items-center gap-3 rounded-lg px-3 py-2 ' + (next ? 'bg-surface-container-low' : 'bg-transparent') + '">' + renderPersonaAvatarBadge_(persona, 'w-9 h-9 text-xs', next && autoplayLive ? 'avatar-pulse' : '') + '<div class="min-w-0 flex-1"><div class="font-medium text-on-surface">' + escapeHtml_(meta.label) + '</div><div class="text-xs text-on-surface-variant">' + escapeHtml_(meta.role) + '</div></div><div class="text-[10px] uppercase tracking-[0.12em] ' + (next ? 'text-primary' : heard ? 'text-secondary' : 'text-on-surface-variant') + '">' + (next ? 'Up next' : heard ? 'Heard' : 'Queued') + '</div></div>';
+        }).join(''),
+        '</div>',
+        '</div>',
+        '<div class="editorial-card p-6 space-y-3"><div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant">Automation</div><div class="font-headline text-2xl font-bold tracking-tight">' + (session.complete ? 'Autoplay finished the full round.' : autoplayLive ? 'Autoplay is carrying the session.' : 'Manual hold is active.') + '</div><p class="text-sm text-on-surface-variant">' + (session.complete ? 'The roundtable completed without manual stepping.' : autoplayLive ? 'Responses animate letter by letter, then the next persona begins automatically.' : 'The current response will finish animating, and the next persona will wait for you.') + '</p></div>',
+        '</aside>',
+        '</div>',
+      ].join('');
+    }
+
+    function renderBrainstormPresenceCard_(session, voices, nextPersona) {
+      return [
+        '<article class="editorial-card p-5 space-y-4">',
+        '<div class="space-y-1"><div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant font-medium">Voices In Room</div><h2 class="font-headline text-2xl font-bold tracking-tight">Who is speaking</h2></div>',
+        voices
+          .map(function (persona, index) {
+            var meta = PERSONA_META[persona] || PERSONA_META.Kai;
+            var completed = session.complete || index < session.nextTurnIndex;
+            var active = !session.complete && persona === nextPersona;
+            return [
+              '<div class="persona-chip-live ',
+              active ? 'active' : '',
+              ' rounded-xl p-4 ',
+              active ? 'bg-surface-container-lowest ambient-shadow' : 'bg-surface-container-low',
+              '">',
+              '<div class="flex items-center gap-3">',
+              '<div class="w-10 h-10 rounded-full ',
+              meta.pill,
+              ' flex items-center justify-center font-headline font-bold text-sm ',
+              active ? 'avatar-pulse' : '',
+              '">',
+              escapeHtml_(meta.initial),
+              '</div>',
+              '<div class="min-w-0 flex-1">',
+              '<div class="flex items-center justify-between gap-3">',
+              '<div class="font-headline text-lg font-bold tracking-tight">',
+              escapeHtml_(persona),
+              '</div>',
+              '<div class="text-[10px] uppercase tracking-[0.12em] ',
+              active ? 'text-primary' : completed ? 'text-secondary' : 'text-on-surface-variant',
+              '">',
+              active ? 'Up Next' : completed ? 'Heard' : 'Queued',
+              '</div>',
+              '</div>',
+              '<div class="text-sm text-on-surface-variant">',
+              escapeHtml_(meta.role),
+              '</div>',
+              '</div>',
+              '</div>',
+              '</div>',
+            ].join('');
+          })
+          .join(''),
+        '</article>',
+      ].join('');
+    }
+
+    function renderBrainstormSignalStack_(session, synthesis) {
+      var signals = buildBrainstormSignalData_(session, synthesis);
+      return [
+        renderBrainstormSignalCard_('Momentum', signals.momentum, 'How much of the room has weighed in so far.'),
+        renderBrainstormSignalCard_('Opportunity', signals.opportunity, 'Positive signal density across the conversation.'),
+        renderBrainstormSignalCard_('Risk Pressure', signals.risk, 'Critical friction and assumption heat picked up by the board.'),
+        renderBrainstormSignalCard_('Actionability', signals.actionability, 'How concrete the next move has become.'),
+      ].join('');
+    }
+
+    function renderBrainstormSignalCard_(label, value, body) {
+      return [
+        '<article class="editorial-card p-5 space-y-4">',
+        '<div class="flex items-end justify-between gap-4">',
+        '<div><div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant font-medium">',
+        escapeHtml_(label),
+        '</div><div class="font-headline text-4xl font-extrabold tracking-tight">',
+        escapeHtml_(String(Math.round(value))),
+        '%</div></div>',
+        '<span class="material-symbols-outlined text-on-surface-variant">monitoring</span>',
+        '</div>',
+        '<div class="signal-bar"><span style="width:',
+        escapeHtml_(String(Math.max(6, Math.round(value)))),
+        '%"></span></div>',
+        '<p class="text-sm text-on-surface-variant">',
+        escapeHtml_(body),
+        '</p>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderBrainstormWhiteboardNotes_(session, synthesis, idea) {
+      var lastVoice = (session.turns || [])
+        .filter(function (turn) {
+          return turn.Agent !== 'Synthesis';
+        })
+        .slice(-1)[0];
+      var criticTurn = findSessionTurnByAgent_(session, 'Sage');
+      var userTurn = findSessionTurnByAgent_(session, 'Luna');
+      return [
+        renderBrainstormStickyNote_(
+          'Problem Frame',
+          idea.ProblemSolved || idea.Summary || 'The brief is still being translated into a sharper problem statement.',
+          'bg-surface-container-lowest'
+        ),
+        renderBrainstormStickyNote_(
+          lastVoice ? lastVoice.Agent + ' just pushed this angle' : 'The session is opening',
+          lastVoice ? truncateText_(lastVoice.Content, 180) : 'The first perspective will appear here as soon as the session begins.',
+          'bg-primary-container'
+        ),
+        renderBrainstormStickyNote_(
+          'User Tension',
+          userTurn ? truncateText_(userTurn.Content, 170) : 'Luna will map the emotional and usability tension once her turn lands.',
+          'bg-secondary-container'
+        ),
+        renderBrainstormStickyNote_(
+          'Critical Watchout',
+          criticTurn ? truncateText_(criticTurn.Content, 170) : 'Sage has not raised the strongest challenge yet.',
+          'bg-tertiary-container'
+        ),
+        renderBrainstormStickyNote_(
+          'Emerging Next Move',
+          synthesis.nextAction || idea.NextAction || 'A concrete next move will lock in once the synthesis finishes.',
+          'bg-surface-container-lowest'
+        ),
+      ].join('');
+    }
+
+    function renderBrainstormStickyNote_(title, body, backgroundClass) {
+      return [
+        '<article class="brainstorm-note rounded-xl p-4 space-y-3 ',
+        backgroundClass || 'bg-surface-container-lowest',
+        '">',
+        '<div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant font-medium">',
+        escapeHtml_(title),
+        '</div>',
+        '<div class="text-sm leading-relaxed text-on-surface">',
+        escapeHtml_(body),
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderBrainstormSynthesisCard_(session, synthesis, idea) {
+      return [
+        '<article class="editorial-card p-6 space-y-4">',
+        '<div class="space-y-1"><div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant font-medium">Session Synthesis</div><h2 class="font-headline text-2xl font-bold tracking-tight">What the board is converging on</h2></div>',
+        synthesis.summary
+          ? '<div class="bg-surface-container-low rounded-xl p-4 space-y-4"><div class="font-headline text-xl font-bold tracking-tight">' +
+            escapeHtml_(synthesis.summary) +
+            '</div><div class="text-sm text-on-surface-variant"><strong class="text-on-surface">Next action:</strong> ' +
+            escapeHtml_(synthesis.nextAction || 'Waiting for synthesis...') +
+            '</div><div class="text-sm text-on-surface-variant"><strong class="text-on-surface">Suggested stage:</strong> ' +
+            escapeHtml_(synthesis.suggestedStage || idea.Stage) +
+            '</div></div>'
+          : '<div class="bg-surface-container-low rounded-xl p-4 text-sm text-on-surface-variant">The synthesis card will populate automatically once the final voice is heard.</div>',
+        synthesis.keyInsights && synthesis.keyInsights.length
+          ? '<div class="space-y-2">' +
+            synthesis.keyInsights
+              .map(function (insight) {
+                return '<div class="rounded-lg bg-surface-container-highest px-3 py-2 text-sm text-on-surface-variant">' + escapeHtml_(insight) + '</div>';
+              })
+              .join('') +
+            '</div>'
+          : '',
+        '</article>',
+      ].join('');
+    }
+
+    function renderBrainstormVoiceChart_(session) {
+      var turns = (session.turns || []).filter(function (turn) {
+        return turn.Agent !== 'Synthesis';
+      });
+      return [
+        '<article class="editorial-card p-6 space-y-4">',
+        '<div class="space-y-1"><div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant font-medium">Board Activity</div><h2 class="font-headline text-2xl font-bold tracking-tight">Voice intensity graph</h2></div>',
+        turns.length
+          ? turns
+              .map(function (turn) {
+                var meta = PERSONA_META[turn.Agent] || PERSONA_META.Kai;
+                var width = clampNumber_(Math.round((String(turn.Content || '').length / 220) * 100), 16, 100);
+                return [
+                  '<div class="space-y-2">',
+                  '<div class="flex items-center justify-between gap-3 text-sm"><span class="inline-flex items-center gap-2"><span class="w-7 h-7 rounded-full ',
+                  meta.pill,
+                  ' flex items-center justify-center font-headline font-bold text-[11px]">',
+                  escapeHtml_(meta.initial),
+                  '</span>',
+                  escapeHtml_(turn.Agent),
+                  '</span><span class="text-on-surface-variant">',
+                  escapeHtml_(formatDateTime_(turn.Timestamp, true)),
+                  '</span></div>',
+                  '<div class="signal-bar"><span style="width:',
+                  escapeHtml_(String(width)),
+                  '%"></span></div>',
+                  '</div>',
+                ].join('');
+              })
+              .join('')
+          : '<div class="text-sm text-on-surface-variant">The graph will build once the first persona responds.</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderBrainstormControlsCard_(session) {
+      return [
+        '<article class="editorial-card p-6 space-y-4">',
+        '<div class="space-y-1"><div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant font-medium">Controls</div><h2 class="font-headline text-2xl font-bold tracking-tight">Session flow</h2></div>',
+        '<p class="text-sm text-on-surface-variant">',
+        session.complete
+          ? 'The conversation has finished. You can accept the recommendation, close the session, or run a new round.'
+          : session.autoplay === false
+            ? 'Autoplay is paused. Resume the live flow or advance one voice manually.'
+            : 'Autoplay is active. The Roundtable will keep moving through each voice automatically.',
+        '</p>',
+        session.complete
+          ? '<div class="flex flex-col gap-3"><button type="button" data-action="accept-recommendation" class="w-full px-4 py-3 rounded-lg bg-gradient-primary text-on-primary font-medium">Accept Recommendation</button><button type="button" data-action="save-close-session" class="w-full px-4 py-3 rounded-lg ghost-border text-primary font-medium">Save & Close</button><button type="button" data-action="run-session-again" class="w-full px-4 py-3 rounded-lg bg-surface-container-highest text-on-surface font-medium">Run Again</button></div>'
+          : session.autoplay === false
+            ? '<div class="flex flex-col gap-3"><button type="button" data-action="resume-session-autoplay" class="w-full px-4 py-3 rounded-lg bg-gradient-primary text-on-primary font-medium">Resume Live Session</button><button type="button" data-action="run-next-persona-turn" class="w-full px-4 py-3 rounded-lg bg-surface-container-highest text-on-surface font-medium">' +
+              (session.loading ? 'Working...' : 'Advance One Voice') +
+              '</button></div>'
+            : '<div class="flex flex-col gap-3"><button type="button" data-action="pause-session-autoplay" class="w-full px-4 py-3 rounded-lg ghost-border text-primary font-medium">Pause Autoplay</button><button type="button" data-action="save-close-session" class="w-full px-4 py-3 rounded-lg bg-surface-container-highest text-on-surface font-medium">Save & Close</button></div>',
+        '</article>',
+      ].join('');
+    }
+
+    function buildBrainstormSignalData_(session, synthesis) {
+      var transcript = (session.turns || [])
+        .filter(function (turn) {
+          return turn.Agent !== 'Synthesis';
+        })
+        .map(function (turn) {
+          return String(turn.Content || '');
+        })
+        .join(' ')
+        .toLowerCase();
+      var totalVoices = Math.max(detectBrainstormPersonas_(session.personas).length, 1);
+      var heardVoices = (session.turns || []).filter(function (turn) {
+        return turn.Agent !== 'Synthesis';
+      }).length;
+      return {
+        momentum: clampNumber_(Math.round((heardVoices / totalVoices) * 100), 0, 100),
+        opportunity: clampNumber_(
+          28 + countKeywordHits_(transcript, ['opportunity', 'advantage', 'valuable', 'growth', 'demand', 'differentiator', 'expand']) * 11,
+          0,
+          100
+        ),
+        risk: clampNumber_(
+          20 + countKeywordHits_(transcript, ['risk', 'assumption', 'unclear', 'competition', 'hard', 'difficult', 'expensive', 'fragile']) * 12,
+          0,
+          100
+        ),
+        actionability: clampNumber_(
+          24 +
+            countKeywordHits_(transcript, ['prototype', 'test', 'validate', 'ship', 'launch', 'experiment', 'mvp', 'next action']) * 10 +
+            (synthesis && synthesis.nextAction ? 12 : 0),
+          0,
+          100
+        ),
+      };
+    }
+
+    function findSessionTurnByAgent_(session, agent) {
+      return (session.turns || []).find(function (turn) {
+        return turn.Agent === agent;
+      });
+    }
+
+    function renderTaskFilters_() {
+      var ideas = App.state.ideas || [];
+      var filterButtons = [
+        '<button type="button" data-task-idea-filter="All Ideas" class="px-3 py-1.5 rounded-full text-sm font-medium ' +
+          (App.state.ui.taskIdeaFilter === 'All Ideas' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-highest text-on-surface-variant') +
+          '">All Ideas</button>',
+      ];
+      ideas.slice(0, 5).forEach(function (idea) {
+        filterButtons.push(
+          '<button type="button" data-task-idea-filter="' +
+            escapeHtml_(idea.ID) +
+            '" class="px-3 py-1.5 rounded-full text-sm font-medium ' +
+            (App.state.ui.taskIdeaFilter === idea.ID ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container-highest text-on-surface-variant') +
+            '">' +
+            escapeHtml_(idea.Name) +
+            '</button>'
+        );
+      });
+      filterButtons.push(
+        '<button type="button" data-task-due-filter="' +
+          escapeHtml_(App.state.ui.taskDueFilter === 'Overdue' ? 'All' : 'Overdue') +
+          '" class="px-3 py-1.5 rounded-full text-sm font-medium ' +
+          (App.state.ui.taskDueFilter === 'Overdue' ? 'bg-error-container text-on-error-container' : 'bg-surface-container-highest text-on-surface-variant') +
+          '">' +
+          escapeHtml_(App.state.ui.taskDueFilter === 'Overdue' ? 'Showing overdue only' : 'Due: Overdue') +
+          '</button>'
+      );
+      return filterButtons.join('');
+    }
+
+    function renderTaskBoard_(tasks) {
+      return (
+        '<div class="flex gap-6 min-w-max pb-4">' +
+        TASK_COLUMNS.map(function (status) {
+          var columnTasks = tasks.filter(function (task) {
+            return task.Status === status;
+          });
+          var tone = status === 'Blocked' ? 'text-error' : 'text-on-surface-variant';
+          return [
+            '<section class="w-80 shrink-0 space-y-4" data-drop-type="task" data-drop-status="',
+            escapeHtml_(status),
+            '">',
+            '<div class="flex items-center justify-between">',
+            '<div class="flex items-center gap-2"><h2 class="font-headline text-sm uppercase tracking-[0.12em] ',
+            tone,
+            '">',
+            escapeHtml_(TASK_STATUS_LABELS[status]),
+            '</h2><span class="text-xs text-outline">',
+            String(columnTasks.length),
+            '</span></div>',
+            '<button type="button" data-action="open-task-modal" data-default-status="',
+            escapeHtml_(status),
+            '" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined text-lg">add</span></button>',
+            '</div>',
+            '<div class="space-y-3 min-h-[320px] bg-surface-container-low rounded-xl p-4">',
+            columnTasks.length
+              ? columnTasks.map(renderTaskCard_).join('')
+              : '<div class="bg-surface-container-lowest rounded-lg p-4 text-sm text-on-surface-variant">No tasks in ' + escapeHtml_(TASK_STATUS_LABELS[status]) + '.</div>',
+            '</div>',
+            '</section>',
+          ].join('');
+        }).join('') +
+        '</div>'
+      );
+    }
+
+    function renderIdeaCard_(idea, options) {
+      options = options || {};
+      var stageMeta = STAGE_META[idea.Stage] || STAGE_META.Spark;
+      return [
+        '<article class="editorial-card p-6 relative overflow-hidden">',
+        '<div class="absolute left-0 top-0 bottom-0 w-1 ',
+        stageMeta.accent,
+        '"></div>',
+        '<div class="flex flex-col lg:flex-row gap-4 lg:items-start justify-between">',
+        '<div class="space-y-3 flex-1 min-w-0">',
+        '<div class="flex flex-wrap items-center gap-2">',
+        renderStageBadge_(idea.Stage),
+        '<span class="text-xs text-outline inline-flex items-center gap-1"><span class="material-symbols-outlined text-sm">folder</span>',
+        escapeHtml_(idea.Category || 'Other'),
+        '</span>',
+        '</div>',
+        '<button type="button" data-nav="#ideas/',
+        escapeHtml_(idea.ID),
+        '" class="text-left font-headline text-2xl font-bold tracking-tight hover:text-primary transition-all duration-200 ease-in-out">',
+        escapeHtml_(idea.Name),
+        '</button>',
+        '<p class="text-on-surface-variant leading-relaxed">',
+        escapeHtml_(idea.Summary || 'No summary recorded yet.'),
+        '</p>',
+        '<div class="flex flex-wrap items-center gap-2">',
+        splitList_(idea.Tags || '').slice(0, 4).map(renderTagChip_).join(''),
+        '</div>',
+        '<div class="text-sm text-on-surface-variant"><strong class="text-on-surface">Next Action:</strong> ',
+        escapeHtml_(idea.NextAction || 'Not generated yet.'),
+        '</div>',
+        '</div>',
+        '<div class="flex flex-col items-start lg:items-end gap-3 shrink-0">',
+        '<div class="text-right"><div class="font-headline text-4xl font-extrabold text-primary">',
+        scoreToPercent_(idea.PriorityScore || 0),
+        '</div><div class="text-[10px] uppercase tracking-[0.12em] text-outline">Priority Score</div></div>',
+        options.hideActions
+          ? ''
+          : '<div class="flex flex-wrap gap-2"><button type="button" data-action="run-brainstorm" data-idea-id="' +
+            escapeHtml_(idea.ID) +
+            '" class="px-3 py-2 rounded-lg bg-surface-container-highest text-on-surface text-sm font-medium hover:bg-surface-container-high transition-all duration-200 ease-in-out">Run Brainstorm</button><button type="button" data-action="open-idea-drawer" data-idea-id="' +
+            escapeHtml_(idea.ID) +
+            '" class="px-3 py-2 rounded-lg ghost-border text-primary text-sm font-medium hover:bg-surface-container-low transition-all duration-200 ease-in-out">Quick View</button><button type="button" data-action="archive-idea" data-idea-id="' +
+            escapeHtml_(idea.ID) +
+            '" class="px-3 py-2 rounded-lg ghost-border text-on-surface-variant text-sm font-medium hover:bg-surface-container-low transition-all duration-200 ease-in-out">Archive</button></div>',
+        '</div>',
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderKanbanIdeaCard_(idea) {
+      return [
+        '<article draggable="true" data-drag-type="idea" data-drag-id="',
+        escapeHtml_(idea.ID),
+        '" class="editorial-card p-4 space-y-3 cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-all duration-200 ease-in-out">',
+        '<div class="flex items-center justify-between gap-3">',
+        renderStageBadge_(idea.Stage),
+        '<button type="button" data-action="open-idea-drawer" data-idea-id="',
+        escapeHtml_(idea.ID),
+        '" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined text-lg">open_in_new</span></button>',
+        '</div>',
+        '<div class="font-headline text-xl font-bold tracking-tight">',
+        escapeHtml_(idea.Name),
+        '</div>',
+        '<div class="text-sm text-on-surface-variant">',
+        escapeHtml_(idea.Category || 'Other'),
+        ' • ',
+        scoreToPercent_(idea.PriorityScore || 0),
+        '</div>',
+        '<div class="flex flex-wrap gap-2">',
+        splitList_(idea.Tags || '').slice(0, 3).map(renderTagChip_).join(''),
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderTaskCard_(task) {
+      var statusAccent =
+        task.Status === 'Blocked'
+          ? 'border-l-2 border-error'
+          : task.Status === 'InProgress'
+          ? 'border-l-2 border-primary'
+          : task.Status === 'Done'
+          ? 'opacity-60'
+          : '';
+      return [
+        '<article draggable="true" data-drag-type="task" data-drag-id="',
+        escapeHtml_(task.TaskID),
+        '" class="bg-surface-container-lowest rounded-xl p-4 ambient-shadow space-y-3 cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-all duration-200 ease-in-out ',
+        statusAccent,
+        '">',
+        '<div class="flex items-start justify-between gap-3">',
+        '<button type="button" data-action="open-task-drawer" data-task-id="',
+        escapeHtml_(task.TaskID),
+        '" class="px-2 py-0.5 rounded text-[10px] uppercase tracking-[0.12em] font-medium ',
+        (STAGE_META[task.IdeaStage] || STAGE_META.Spark).badge,
+        '">',
+        escapeHtml_(task.IdeaName || 'Unlinked'),
+        '</button>',
+        '<button type="button" data-action="open-task-drawer" data-task-id="',
+        escapeHtml_(task.TaskID),
+        '" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined text-lg">more_horiz</span></button>',
+        '</div>',
+        '<button type="button" data-action="open-task-drawer" data-task-id="',
+        escapeHtml_(task.TaskID),
+        '" class="text-left w-full font-medium text-lg leading-snug hover:text-primary transition-all duration-200 ease-in-out ',
+        task.Status === 'Done' ? 'line-through text-on-surface-variant' : '',
+        '">',
+        escapeHtml_(task.Title),
+        '</button>',
+        task.Status === 'Blocked'
+          ? '<div class="text-sm text-error italic inline-flex items-center gap-2"><span class="material-symbols-outlined text-base">warning</span>Blocked pending follow-up</div>'
+          : '',
+        '<div class="flex items-center justify-between gap-3 text-sm text-on-surface-variant">',
+        '<div class="' + (task.IsOverdue ? 'text-error' : '') + ' inline-flex items-center gap-2"><span class="material-symbols-outlined text-base">calendar_today</span>' + escapeHtml_(formatDate_(task.DueDate) || 'No due date') + '</div>',
+        '<div class="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center font-headline font-bold">',
+        escapeHtml_(task.AssigneeInitial || 'U'),
+        '</div>',
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderTaskListCard_(task) {
+      return [
+        '<article class="editorial-card p-5 flex items-center justify-between gap-4">',
+        '<div class="space-y-2"><button type="button" data-action="open-task-drawer" data-task-id="',
+        escapeHtml_(task.TaskID),
+        '" class="text-left font-headline text-2xl font-bold tracking-tight hover:text-primary">',
+        escapeHtml_(task.Title),
+        '</button><div class="text-sm text-on-surface-variant">',
+        escapeHtml_(task.IdeaName || 'Unlinked'),
+        ' • ',
+        escapeHtml_(TASK_STATUS_LABELS[task.Status] || task.Status),
+        '</div></div>',
+        '<div class="text-right text-sm text-on-surface-variant">Due ',
+        escapeHtml_(formatDate_(task.DueDate) || 'someday'),
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderResourceCard_(resource) {
+      var accent = resource.Type === 'Book' ? 'bg-secondary-container text-on-secondary-container' : resource.Type === 'Video' ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-primary-container text-on-primary-container';
+      return [
+        '<article class="editorial-card p-6 space-y-5 border-t-4 border-surface-container-highest hover:-translate-y-1 transition-all duration-200 ease-in-out">',
+        '<div class="flex items-start justify-between gap-3">',
+        '<div class="w-12 h-12 rounded-xl ',
+        accent,
+        ' flex items-center justify-center">',
+        '<span class="material-symbols-outlined">',
+        resource.Type === 'Book' ? 'menu_book' : resource.Type === 'Video' ? 'play_circle' : resource.Type === 'App' ? 'web' : 'psychology',
+        '</span>',
+        '</div>',
+        '<span class="px-3 py-1 rounded-full bg-surface-container-highest text-xs font-medium uppercase tracking-[0.12em] text-on-surface-variant">',
+        escapeHtml_(resource.Type || 'Tool'),
+        '</span>',
+        '</div>',
+        '<div class="space-y-2">',
+        '<button type="button" data-action="open-resource-drawer" data-resource-id="',
+        escapeHtml_(resource.ID),
+        '" class="text-left font-headline text-3xl leading-tight font-bold tracking-tight hover:text-primary transition-all duration-200 ease-in-out">',
+        escapeHtml_(resource.Title),
+        '</button>',
+        '<p class="text-on-surface-variant leading-relaxed">',
+        escapeHtml_(resource.Description || 'No description yet.'),
+        '</p>',
+        '</div>',
+        '<div class="flex flex-wrap gap-2">',
+        splitList_(resource.Tags || '').slice(0, 3).map(renderTagChip_).join(''),
+        '</div>',
+        '<div class="flex items-center justify-between gap-3 pt-2">',
+        '<div class="inline-flex items-center gap-2 text-sm text-on-surface-variant"><span class="w-2.5 h-2.5 rounded-full ',
+        resource.Status === 'Useful' || resource.Status === 'Saved' ? 'bg-secondary' : resource.Status === 'Deprecated' ? 'bg-error' : 'bg-outline',
+        '"></span>',
+        escapeHtml_(resource.Status || 'Saved'),
+        '</div>',
+        '<button type="button" data-action="open-resource-drawer" data-resource-id="',
+        escapeHtml_(resource.ID),
+        '" class="text-primary hover:underline text-sm font-medium">Open</button>',
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderResourceCompactCard_(resource) {
+      return [
+        '<article class="bg-surface-container-low rounded-lg p-4 flex items-center justify-between gap-4">',
+        '<div class="space-y-1 min-w-0"><div class="font-medium text-on-surface truncate">',
+        escapeHtml_(resource.Title),
+        '</div><div class="text-sm text-on-surface-variant">',
+        escapeHtml_(resource.Type || 'Resource'),
+        '</div></div>',
+        '<button type="button" data-action="open-resource-drawer" data-resource-id="',
+        escapeHtml_(resource.ID),
+        '" class="text-primary text-sm font-medium hover:underline">Open</button>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderResourcesListTable_(resources) {
+      if (!resources.length) {
+        return '';
+      }
+      return [
+        '<div class="grid grid-cols-[2fr_1fr_1fr_1fr] gap-4 px-6 py-4 text-xs uppercase tracking-[0.12em] text-on-surface-variant bg-surface-container-low">',
+        '<div>Title</div><div>Type</div><div>Status</div><div>Related Ideas</div>',
+        '</div>',
+        resources
+          .map(function (resource, index) {
+            return [
+              '<button type="button" data-action="open-resource-drawer" data-resource-id="',
+              escapeHtml_(resource.ID),
+              '" class="w-full text-left grid grid-cols-[2fr_1fr_1fr_1fr] gap-4 px-6 py-5 ',
+              index % 2 === 0 ? 'bg-surface-container-lowest' : 'bg-surface',
+              ' hover:bg-surface-container-low transition-all duration-200 ease-in-out">',
+              '<div class="min-w-0"><div class="font-medium text-on-surface truncate">',
+              escapeHtml_(resource.Title),
+              '</div><div class="text-sm text-on-surface-variant truncate">',
+              escapeHtml_(resource.Description || ''),
+              '</div></div>',
+              '<div class="text-on-surface-variant">',
+              escapeHtml_(resource.Type || 'Resource'),
+              '</div>',
+              '<div class="text-on-surface-variant">',
+              escapeHtml_(resource.Status || 'Saved'),
+              '</div>',
+              '<div class="text-on-surface-variant truncate">',
+              escapeHtml_((resource.RelatedIdeas || []).map(function (idea) { return idea.Name; }).join(', ') || 'None'),
+              '</div>',
+              '</button>',
+            ].join('');
+          })
+          .join(''),
+      ].join('');
+    }
+
+    function renderDashboardSessionCard_(session) {
+      return [
+        '<article class="editorial-card p-4 space-y-3">',
+        '<div class="flex items-start justify-between gap-3">',
+        '<div class="space-y-1"><div class="font-headline text-xl font-bold tracking-tight">',
+        escapeHtml_(session.ideaName),
+        '</div><div class="text-sm text-on-surface-variant">',
+        escapeHtml_(formatDateTime_(session.updatedAt)),
+        '</div></div>',
+        '<button type="button" data-action="resume-session" data-session-id="',
+        escapeHtml_(session.sessionId),
+        '" class="text-primary text-sm font-medium hover:underline">',
+        session.complete ? 'View' : 'Resume',
+        '</button>',
+        '</div>',
+        '<div class="flex flex-wrap gap-2">',
+        (session.personas || []).map(renderPersonaPill_).join(''),
+        '</div>',
+        '<div class="text-sm text-on-surface-variant">',
+        escapeHtml_(session.summary || 'No synthesis yet.'),
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderSessionHistoryCard_(session) {
+      return [
+        '<article class="editorial-card p-6 space-y-4">',
+        '<div class="flex flex-col md:flex-row md:items-start justify-between gap-4">',
+        '<div class="space-y-2"><div class="font-headline text-2xl font-bold tracking-tight">',
+        escapeHtml_(session.ideaName),
+        '</div><div class="flex flex-wrap gap-2">',
+        (session.personas || []).map(renderPersonaPill_).join(''),
+        '</div></div>',
+        '<div class="text-sm text-on-surface-variant">',
+        escapeHtml_(formatDateTime_(session.updatedAt)),
+        '</div>',
+        '</div>',
+        '<p class="text-on-surface-variant">',
+        escapeHtml_(session.summary || 'No synthesis yet.'),
+        '</p>',
+        '<button type="button" data-action="resume-session" data-session-id="',
+        escapeHtml_(session.sessionId),
+        '" class="text-primary text-sm font-medium hover:underline">',
+        session.complete ? 'Open transcript' : 'Resume session',
+        '</button>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderPersonaBubble_(turn) {
+      var meta = getPersonaVisual_(turn.Agent);
+      var typing = getTypingStateForTurn_(turn);
+      var content = typing ? typing.fullText.slice(0, typing.displayedLength) : turn.Content || '';
+      return [
+        '<article class="relative pl-6">',
+        '<div class="absolute left-0 top-0 bottom-0 w-[2px] rounded-full ',
+        meta.line,
+        '"></div>',
+        '<div class="flex items-center gap-3 mb-3">',
+        renderPersonaAvatarBadge_(turn.Agent, 'w-8 h-8 text-xs', ''),
+        '<span class="font-semibold">',
+        escapeHtml_(meta.label),
+        '</span>',
+        '<span class="text-[10px] uppercase tracking-[0.14em] ',
+        meta.text,
+        '">',
+        escapeHtml_(meta.role),
+        '</span>',
+        '<span class="text-xs text-on-surface-variant ml-auto">',
+        escapeHtml_(formatDateTime_(turn.Timestamp, true)),
+        '</span>',
+        '</div>',
+        '<div class="text-lg leading-relaxed text-on-surface pr-4">',
+        escapeHtml_(content),
+        typing ? '<span class="typewriter-cursor"></span>' : '',
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderLoadingTurn_(personaKey, phase) {
+      var meta = getPersonaVisual_(personaKey);
+      var copy =
+        phase === 'paused'
+          ? 'Paused. Resume the live session to bring this voice in.'
+          : phase === 'queued'
+            ? 'Preparing the next perspective for the transcript.'
+            : 'Thinking through the next angle...';
+      return [
+        '<article class="relative pl-6 opacity-80">',
+        '<div class="absolute left-0 top-0 bottom-0 w-[2px] rounded-full ',
+        meta.line,
+        '"></div>',
+        '<div class="flex items-center gap-3 mb-3">',
+        renderPersonaAvatarBadge_(personaKey, 'w-8 h-8 text-xs', 'avatar-pulse'),
+        '<span class="font-semibold">',
+        escapeHtml_(meta.label || 'Roundtable'),
+        '</span>',
+        '<span class="text-[10px] uppercase tracking-[0.14em] ',
+        meta.text,
+        '">',
+        escapeHtml_(meta.role),
+        '</span>',
+        '</div>',
+        '<div class="inline-flex items-center gap-3 bg-surface-container-low rounded-lg px-4 py-3 text-on-surface-variant">',
+        '<span class="thinking-dots"><span></span><span></span><span></span></span>',
+        '<span>',
+        escapeHtml_(copy),
+        '</span>',
+        '</div>',
+        '<div class="text-sm text-on-surface-variant mt-3">',
+        phase === 'paused'
+          ? 'You can resume autoplay or advance this voice manually.'
+          : 'The transcript will update automatically when this perspective lands.',
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderOverviewBlock_(label, value) {
+      return [
+        '<article class="editorial-card p-6 space-y-3">',
+        '<div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant font-medium">',
+        escapeHtml_(label),
+        '</div>',
+        '<div class="text-lg leading-relaxed text-on-surface">',
+        escapeHtml_(value),
+        '</div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderIdeaEditForm_(idea, formId) {
+      var closeAction = formId === 'idea-drawer-edit-form' ? 'close-drawer' : 'toggle-idea-edit';
+      return [
+        '<form id="',
+        escapeHtml_(formId),
+        '" data-idea-id="',
+        escapeHtml_(idea.ID),
+        '" class="space-y-5">',
+        '<div class="grid gap-4">',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Name</span><input name="Name" value="',
+        escapeHtml_(idea.Name || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Summary</span><textarea name="Summary" rows="4" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring">',
+        escapeHtml_(idea.Summary || ''),
+        '</textarea></label>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Problem Solved</span><textarea name="ProblemSolved" rows="4" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring">',
+        escapeHtml_(idea.ProblemSolved || ''),
+        '</textarea></label>',
+        '<div class="grid md:grid-cols-2 gap-4">',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Target Users</span><input name="TargetUsers" value="',
+        escapeHtml_(idea.TargetUsers || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Unique Value</span><input name="UniqueValue" value="',
+        escapeHtml_(idea.UniqueValue || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '</div>',
+        '<div class="grid md:grid-cols-3 gap-4">',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Category</span><input name="Category" value="',
+        escapeHtml_(idea.Category || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Stage</span><select name="Stage" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring">',
+        IDEA_STAGES.map(function (stage) {
+          return '<option value="' + escapeHtml_(stage) + '"' + (stage === idea.Stage ? ' selected' : '') + '>' + escapeHtml_(stage) + '</option>';
+        }).join(''),
+        '</select></label>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Tags</span><input name="Tags" value="',
+        escapeHtml_(idea.Tags || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '</div>',
+        '</div>',
+        '<div class="flex justify-end gap-3"><button type="button" data-action="' +
+          closeAction +
+          '" class="px-4 py-2.5 rounded-lg ghost-border text-primary font-medium">Close</button><button type="submit" class="px-4 py-2.5 rounded-lg bg-gradient-primary text-on-primary font-medium">Save Changes</button></div>',
+        '</form>',
+      ].join('');
+    }
+
+    function renderResourceForm_(formId, resource) {
+      resource = resource || {};
+      return [
+        '<form id="',
+        escapeHtml_(formId),
+        '" ',
+        resource.ID ? 'data-resource-id="' + escapeHtml_(resource.ID) + '"' : '',
+        ' class="space-y-5">',
+        '<div class="grid md:grid-cols-2 gap-4">',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Title</span><input name="Title" value="',
+        escapeHtml_(resource.Title || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" required /></label>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Type</span><select name="Type" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring">',
+        RESOURCE_TYPES.filter(function (type) {
+          return type !== 'All Items';
+        })
+          .map(function (type) {
+            return '<option value="' + escapeHtml_(type) + '"' + (type === resource.Type ? ' selected' : '') + '>' + escapeHtml_(type) + '</option>';
+          })
+          .join(''),
+        '</select></label>',
+        '</div>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Description</span><textarea name="Description" rows="4" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring">',
+        escapeHtml_(resource.Description || ''),
+        '</textarea></label>',
+        '<div class="grid md:grid-cols-2 gap-4">',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">URL</span><input name="URL" value="',
+        escapeHtml_(resource.URL || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Release Date</span><input name="ReleaseDate" type="date" value="',
+        escapeHtml_(formatDateInput_(resource.ReleaseDate)),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '</div>',
+        '<div class="grid md:grid-cols-2 gap-4">',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Status</span><select name="Status" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring">',
+        RESOURCE_STATUSES.filter(function (status) {
+          return status !== 'All Statuses';
+        })
+          .map(function (status) {
+            return '<option value="' + escapeHtml_(status) + '"' + (status === (resource.Status || 'Saved') ? ' selected' : '') + '>' + escapeHtml_(status) + '</option>';
+          })
+          .join(''),
+        '</select></label>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Tags</span><input name="Tags" value="',
+        escapeHtml_(resource.Tags || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '</div>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Related Idea IDs</span><input name="RelatedIdeaIDs" value="',
+        escapeHtml_(resource.RelatedIdeaIDs || ''),
+        '" placeholder="Comma-separated idea IDs" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '<div class="flex justify-end gap-3"><button type="button" data-action="close-modal" class="px-4 py-2.5 rounded-lg ghost-border text-primary font-medium">Cancel</button><button type="submit" class="px-4 py-2.5 rounded-lg bg-gradient-primary text-on-primary font-medium">',
+        resource.ID ? 'Save Resource' : 'Add Resource',
+        '</button></div>',
+        '</form>',
+      ].join('');
+    }
+
+    function renderResourceEditForm_(resource) {
+      return renderResourceForm_('resource-edit-form', resource).replace(
+        'data-action="close-modal"',
+        'data-action="close-drawer"'
+      );
+    }
+
+    function renderTaskForm_(formId, task) {
+      task = task || {};
+      var ideas = App.state.ideas || [];
+      return [
+        '<form id="',
+        escapeHtml_(formId),
+        '" ',
+        task.TaskID ? 'data-task-id="' + escapeHtml_(task.TaskID) + '"' : '',
+        ' class="space-y-5">',
+        '<div class="grid md:grid-cols-2 gap-4">',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Linked Idea</span><select name="IdeaID" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"><option value="">Unlinked</option>',
+        ideas
+          .map(function (idea) {
+            return '<option value="' + escapeHtml_(idea.ID) + '"' + (idea.ID === task.IdeaID ? ' selected' : '') + '>' + escapeHtml_(idea.Name) + '</option>';
+          })
+          .join(''),
+        '</select></label>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Status</span><select name="Status" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring">',
+        TASK_COLUMNS.map(function (status) {
+          return '<option value="' + escapeHtml_(status) + '"' + (status === (task.Status || 'Todo') ? ' selected' : '') + '>' + escapeHtml_(TASK_STATUS_LABELS[status]) + '</option>';
+        }).join(''),
+        '</select></label>',
+        '</div>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Title</span><input name="Title" value="',
+        escapeHtml_(task.Title || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" required /></label>',
+        '<div class="grid md:grid-cols-2 gap-4">',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Assignee</span><input name="Assignee" value="',
+        escapeHtml_(task.Assignee || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Due Date</span><input name="DueDate" type="date" value="',
+        escapeHtml_(formatDateInput_(task.DueDate)),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '</div>',
+        '<label class="space-y-2 block"><span class="text-xs uppercase tracking-[0.12em] font-medium">Tags</span><input name="Tags" value="',
+        escapeHtml_(task.Tags || ''),
+        '" class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring" /></label>',
+        '<div class="flex justify-end gap-3"><button type="button" data-action="close-modal" class="px-4 py-2.5 rounded-lg ghost-border text-primary font-medium">Cancel</button><button type="submit" class="px-4 py-2.5 rounded-lg bg-gradient-primary text-on-primary font-medium">',
+        task.TaskID ? 'Save Task' : 'Create Task',
+        '</button></div>',
+        '</form>',
+      ].join('');
+    }
+
+    function renderTaskEditForm_(task) {
+      return renderTaskForm_('task-edit-form', task).replace(
+        'data-action="close-modal"',
+        'data-action="close-drawer"'
+      );
+    }
+
+    function renderStageBadge_(stage) {
+      var meta = STAGE_META[stage] || STAGE_META.Spark;
+      return '<span class="px-3 py-1 rounded text-[10px] font-medium uppercase tracking-[0.12em] ' + meta.badge + '">' + escapeHtml_(stage || 'Spark') + '</span>';
+    }
+
+    function getPersonaVisual_(personaKey, overrides) {
+      overrides = overrides || {};
+      var base = PERSONA_META[personaKey] || PERSONA_META.Kai;
+      var profiles = App.state.settings && App.state.settings.personaProfiles ? App.state.settings.personaProfiles : {};
+      var profile = profiles[personaKey] || {};
+      var label = String(overrides.displayName || profile.displayName || personaKey || 'Roundtable').trim() || personaKey || 'Roundtable';
+      var avatarDataUrl =
+        typeof overrides.avatarDataUrl === 'string' ? overrides.avatarDataUrl : profile.avatarDataUrl || '';
+      return {
+        key: personaKey,
+        label: label,
+        role: base.role,
+        line: base.line,
+        pill: base.pill,
+        text: base.text,
+        avatarDataUrl: avatarDataUrl,
+        hasAvatar: !!avatarDataUrl,
+        initial: personaKey === 'Synthesis' ? base.initial : (label.charAt(0) || base.initial || '?').toUpperCase(),
+      };
+    }
+
+    function getPersonaLabel_(personaKey) {
+      return getPersonaVisual_(personaKey).label;
+    }
+
+    function renderPersonaAvatarBadge_(personaKey, sizeClasses, extraClasses, overrides) {
+      var visual = getPersonaVisual_(personaKey, overrides);
+      var className =
+        (sizeClasses || 'w-8 h-8') +
+        ' rounded-full overflow-hidden shrink-0 flex items-center justify-center ' +
+        (visual.hasAvatar
+          ? 'bg-surface-container-highest ring-1 ring-outline-variant/20'
+          : visual.pill + ' font-headline font-bold') +
+        (extraClasses ? ' ' + extraClasses : '');
+      var inner = visual.hasAvatar
+        ? '<img src="' + escapeHtml_(visual.avatarDataUrl) + '" alt="' + escapeHtml_(visual.label) + '" class="w-full h-full object-cover" />'
+        : escapeHtml_(visual.initial);
+      return '<div class="' + className + '">' + inner + '</div>';
+    }
+
+    function renderPersonaPill_(persona) {
+      var meta = getPersonaVisual_(persona);
+      return '<span class="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-[0.12em] bg-surface-container-highest text-on-surface inline-flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full ' + meta.line + '"></span>' + escapeHtml_(meta.label) + '</span>';
+    }
+
+    function renderStagePillsFromSession_(personas) {
+      return '<span class="px-3 py-1 rounded-full bg-surface-container-highest text-sm text-on-surface-variant">' + escapeHtml_(detectModeFromPersonas_(personas)) + '</span>';
+    }
+
+    function renderTagChip_(tag) {
+      return '<span class="px-2.5 py-1 rounded-lg bg-surface-container-highest text-xs text-on-surface-variant">' + escapeHtml_(tag) + '</span>';
+    }
+
+    function renderScoreMeter_(score) {
+      return [
+        '<div class="space-y-4">',
+        '<div class="flex items-end gap-3"><div class="font-headline text-5xl font-extrabold text-secondary">',
+        scoreToPercent_(score),
+        '</div><div class="text-on-surface-variant text-sm uppercase tracking-[0.12em]">Priority</div></div>',
+        '<div class="w-full h-3 bg-surface-container-highest rounded-full overflow-hidden"><div class="h-full bg-gradient-primary rounded-full" style="width:',
+        String(Math.max(4, Math.round(Number(score || 0) * 100))),
+        '%"></div></div>',
+        '</div>',
+      ].join('');
+    }
+
+    function renderStatCard_(label, value, icon) {
+      return [
+        '<article class="editorial-card p-5 flex items-center justify-between gap-4">',
+        '<div class="space-y-2"><div class="text-xs uppercase tracking-[0.12em] text-on-surface-variant">',
+        escapeHtml_(label),
+        '</div><div class="font-headline text-4xl font-extrabold tracking-tight">',
+        escapeHtml_(String(value)),
+        '</div></div>',
+        '<div class="w-11 h-11 rounded-xl bg-surface-container-highest text-on-surface-variant flex items-center justify-center"><span class="material-symbols-outlined">',
+        escapeHtml_(icon),
+        '</span></div>',
+        '</article>',
+      ].join('');
+    }
+
+    function renderEmptyState_(title, body, buttonLabel, navHash, action) {
+      var buttonHtml = '';
+      if (navHash) {
+        buttonHtml = '<button type="button" data-nav="' + escapeHtml_(navHash) + '" class="px-4 py-2.5 rounded-lg bg-gradient-primary text-on-primary font-medium">' + escapeHtml_(buttonLabel) + '</button>';
+      } else if (action) {
+        buttonHtml = '<button type="button" data-action="' + escapeHtml_(action) + '" class="px-4 py-2.5 rounded-lg bg-gradient-primary text-on-primary font-medium">' + escapeHtml_(buttonLabel) + '</button>';
+      }
+      return [
+        '<div class="space-y-4">',
+        '<div class="w-14 h-14 mx-auto rounded-2xl bg-surface-container-highest text-on-surface-variant flex items-center justify-center"><span class="material-symbols-outlined text-2xl">wb_twilight</span></div>',
+        '<div class="space-y-2"><div class="font-headline text-3xl font-bold tracking-tight">',
+        escapeHtml_(title),
+        '</div><p class="text-on-surface-variant max-w-2xl mx-auto">',
+        escapeHtml_(body),
+        '</p></div>',
+        buttonHtml,
+        '</div>',
+      ].join('');
+    }
+
+    function renderInlineEmptyState_(title, body, buttonLabel, navHash) {
+      return '<div class="editorial-card p-6 text-center space-y-3"><div class="font-headline text-2xl font-bold tracking-tight">' + escapeHtml_(title) + '</div><p class="text-on-surface-variant">' + escapeHtml_(body) + '</p><button type="button" data-nav="' + escapeHtml_(navHash) + '" class="px-4 py-2.5 rounded-lg bg-gradient-primary text-on-primary font-medium">' + escapeHtml_(buttonLabel) + '</button></div>';
+    }
+
+    function renderSmallEmptyCard_(title, body) {
+      return '<article class="editorial-card p-5 space-y-2"><div class="font-headline text-xl font-bold tracking-tight">' + escapeHtml_(title) + '</div><div class="text-sm text-on-surface-variant">' + escapeHtml_(body) + '</div></article>';
+    }
+
+    function filterIdeas_(ideas) {
+      return ideas
+        .filter(function (idea) {
+          if (App.state.ui.ideaStage !== 'All' && idea.Stage !== App.state.ui.ideaStage) {
+            return false;
+          }
+          if (App.state.ui.ideasSearch) {
+            var haystack = [idea.Name, idea.Summary, idea.Category, idea.Tags].join(' ').toLowerCase();
+            if (haystack.indexOf(App.state.ui.ideasSearch.toLowerCase()) === -1) {
+              return false;
+            }
+          }
+          return true;
+        })
+        .slice()
+        .sort(sortIdeasComparator_());
+    }
+
+    function sortIdeasComparator_() {
+      return function (left, right) {
+        var key = App.state.ui.ideasSort;
+        if (key === 'Name') {
+          return String(left.Name || '').localeCompare(String(right.Name || ''));
+        }
+        if (key === 'LastBrainstormed') {
+          return new Date(right.LastBrainstormed || 0).getTime() - new Date(left.LastBrainstormed || 0).getTime();
+        }
+        return Number(right.PriorityScore || 0) - Number(left.PriorityScore || 0);
+      };
+    }
+
+    function filterResources_(resources) {
+      return resources.filter(function (resource) {
+        if (App.state.ui.resourceType !== 'All Items' && resource.Type !== App.state.ui.resourceType) {
+          return false;
+        }
+        if (App.state.ui.resourceStatus !== 'All Statuses' && resource.Status !== App.state.ui.resourceStatus) {
+          return false;
+        }
+        if (App.state.ui.resourceSearch) {
+          var haystack = [resource.Title, resource.Description, resource.Tags, resource.Type].join(' ').toLowerCase();
+          if (haystack.indexOf(App.state.ui.resourceSearch.toLowerCase()) === -1) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    function filterTasks_(tasks) {
+      return tasks.filter(function (task) {
+        if (App.state.ui.taskIdeaFilter !== 'All Ideas' && task.IdeaID !== App.state.ui.taskIdeaFilter) {
+          return false;
+        }
+        if (App.state.ui.taskDueFilter === 'Overdue' && !task.IsOverdue) {
+          return false;
+        }
+        if (App.state.ui.taskSearch) {
+          var haystack = [task.Title, task.IdeaName, task.Tags, task.Assignee].join(' ').toLowerCase();
+          if (haystack.indexOf(App.state.ui.taskSearch.toLowerCase()) === -1) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    function parseHash_(hash) {
+      var clean = String(hash || '#dashboard').replace(/^#/, '') || 'dashboard';
+      var parts = clean.split('?');
+      var path = parts[0];
+      var query = parseQuery_(parts[1] || '');
+      var segments = path.split('/').filter(Boolean);
+
+      if (!segments.length || segments[0] === 'dashboard') {
+        return { name: 'dashboard', root: 'dashboard', params: {}, query: query };
+      }
+      if (segments[0] === 'ideas' && segments[1] === 'new') {
+        return { name: 'ideas-new', root: 'ideas', params: {}, query: query };
+      }
+      if (segments[0] === 'ideas' && segments[1]) {
+        return { name: 'idea-detail', root: 'ideas', params: { id: decodeURIComponent(segments[1]) }, query: query };
+      }
+      if (segments[0] === 'ideas') {
+        return { name: 'ideas', root: 'ideas', params: {}, query: query };
+      }
+      if (segments[0] === 'brainstorm' && segments[1] === 'history') {
+        return { name: 'brainstorm-history', root: 'brainstorm', params: {}, query: query };
+      }
+      if (segments[0] === 'brainstorm') {
+        return { name: 'brainstorm', root: 'brainstorm', params: {}, query: query };
+      }
+      if (segments[0] === 'resources') {
+        return { name: 'resources', root: 'resources', params: {}, query: query };
+      }
+      if (segments[0] === 'tasks') {
+        return { name: 'tasks', root: 'tasks', params: {}, query: query };
+      }
+      if (segments[0] === 'settings') {
+        return { name: 'settings', root: 'settings', params: {}, query: query };
+      }
+      return { name: 'dashboard', root: 'dashboard', params: {}, query: query };
+    }
+
+    function parseQuery_(queryString) {
+      return String(queryString || '')
+        .split('&')
+        .filter(Boolean)
+        .reduce(function (accumulator, pair) {
+          var parts = pair.split('=');
+          accumulator[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1] || '');
+          return accumulator;
+        }, {});
+    }
+
+    function hydrateActiveSessionFromProgress_(progress, fallbackMode) {
+      var mode = progress.mode || fallbackMode || detectModeFromPersonas_(progress.personas || []);
+      var personas =
+        detectBrainstormPersonas_(progress.personas || []).length
+          ? detectBrainstormPersonas_(progress.personas || [])
+          : (BRAINSTORM_MODES[mode] ? BRAINSTORM_MODES[mode].personas.slice() : []);
+      var ideaName = progress.idea && progress.idea.Name ? progress.idea.Name : '';
+      var existingSession =
+        App.state.activeSession && App.state.activeSession.sessionId === progress.sessionId ? App.state.activeSession : null;
+      var autoplay = existingSession ? existingSession.autoplay !== false : !progress.complete;
+      return {
+        sessionId: progress.sessionId,
+        ideaId: progress.ideaId,
+        ideaName: ideaName,
+        mode: mode,
+        personas: personas.map(function (key) {
+          return { key: key };
+        }),
+        turns: progress.turns || [],
+        nextTurnIndex: (progress.turns || []).filter(function (turn) {
+          return turn.Agent !== 'Synthesis';
+        }).length,
+        complete: !!progress.complete,
+        synthesis: progress.synthesis || null,
+        synthesisData: progress.synthesisData || null,
+        loading: false,
+        autoplay: autoplay && !progress.complete,
+      };
+    }
+
+    function nextPersonaForSession_(session) {
+      if (!session || session.complete) {
+        return 'Synthesis';
+      }
+      var personas = session.personas.map(function (persona) {
+        return typeof persona === 'string' ? persona : persona.key;
+      });
+      return personas[session.nextTurnIndex] || 'Synthesis';
+    }
+
+    function detectBrainstormPersonas_(personas) {
+      if (!personas || !personas.length) {
+        return [];
+      }
+      return personas
+        .map(function (persona) {
+          return typeof persona === 'string' ? persona : persona && persona.key ? persona.key : '';
+        })
+        .filter(Boolean);
+    }
+
+    function detectModeFromPersonas_(personas) {
+      var normalized = detectBrainstormPersonas_(personas).slice().sort().join('|');
+      return (
+        Object.keys(BRAINSTORM_MODES).find(function (mode) {
+          return BRAINSTORM_MODES[mode].personas.slice().sort().join('|') === normalized;
+        }) || 'Full Roundtable'
+      );
+    }
+
+    function parseSynthesis_(content) {
+      if (!content) {
+        return { summary: '', nextAction: '', suggestedStage: '', keyInsights: [] };
+      }
+      try {
+        return JSON.parse(content);
+      } catch (error) {
+        var summaryMatch = content.match(/Summary:\s*([\s\S]*?)(?:\nNextAction:|\nNext Action:|$)/i);
+        var nextActionMatch = content.match(/Next(?:\s)?Action:\s*([\s\S]*?)(?:\nSuggestedStage:|\nSuggested Stage:|$)/i);
+        var stageMatch = content.match(/Suggested(?:\s)?Stage:\s*([^\n]+)/i);
+        return {
+          summary: summaryMatch ? summaryMatch[1].trim() : content.trim(),
+          nextAction: nextActionMatch ? nextActionMatch[1].trim() : '',
+          suggestedStage: stageMatch ? stageMatch[1].trim() : '',
+          keyInsights: [],
+        };
+      }
+    }
+
+    function greetingForName_(name) {
+      var hour = new Date().getHours();
+      var prefix = hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening';
+      return prefix + ', ' + (name || 'Alex') + '.';
+    }
+
+    function getAvatarBackgroundClass_(accent) {
+      switch (accent) {
+        case 'secondary':
+          return 'bg-secondary';
+        case 'tertiary':
+          return 'bg-tertiary';
+        case 'outline':
+          return 'bg-outline';
+        default:
+          return 'bg-primary';
+      }
+    }
+
+    function scoreToPercent_(score) {
+      return Math.round(Number(score || 0) * 100);
+    }
+
+    function escapeHtml_(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatDate_(value) {
+      if (!value) {
+        return '';
+      }
+      var date = new Date(value);
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatDateInput_(value) {
+      if (!value) {
+        return '';
+      }
+      var date = new Date(value);
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      return date.toISOString().slice(0, 10);
+    }
+
+    function formatDateTime_(value, timeOnly) {
+      if (!value) {
+        return '';
+      }
+      var date = new Date(value);
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      if (timeOnly) {
+        return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      }
+      return date.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    }
+
+    function splitList_(value) {
+      return String(value || '')
+        .split(',')
+        .map(function (item) {
+          return item.trim();
+        })
+        .filter(Boolean);
+    }
+
+    function truncateText_(value, maxLength) {
+      var normalized = String(value || '').replace(/\s+/g, ' ').trim();
+      if (!maxLength || normalized.length <= maxLength) {
+        return normalized;
+      }
+      return normalized.slice(0, maxLength - 3).replace(/\s+\S*$/, '') + '...';
+    }
+
+    function clampNumber_(value, min, max) {
+      return Math.max(Number(min), Math.min(Number(max), Number(value)));
+    }
+
+    function countKeywordHits_(text, keywords) {
+      return (keywords || []).reduce(function (count, keyword) {
+        return count + (String(text || '').indexOf(keyword) > -1 ? 1 : 0);
+      }, 0);
+    }
+
+    function formToObject_(form) {
+      var data = {};
+      Array.prototype.forEach.call(form.elements, function (element) {
+        if (!element.name) {
+          return;
+        }
+        if (element.type === 'checkbox') {
+          data[element.name] = element.checked ? 'true' : 'false';
+          return;
+        }
+        data[element.name] = element.value;
+      });
+      return data;
+    }
+
+    function populateForm_(form, data) {
+      Array.prototype.forEach.call(form.elements, function (element) {
+        if (!element.name || !Object.prototype.hasOwnProperty.call(data, element.name)) {
+          return;
+        }
+        if (element.type === 'checkbox') {
+          element.checked = String(data[element.name]) === 'true';
+          return;
+        }
+        element.value = data[element.name] || '';
+      });
+    }
+
+    function setFormBusy_(form, busy) {
+      Array.prototype.forEach.call(form.querySelectorAll('button, input, select, textarea'), function (element) {
+        element.disabled = busy;
+      });
+    }
+
+    async function requestIdeaDraft_(form, brief, options) {
+      options = options || {};
+      setIdeaDraftStatus_(form, 'Drafting the structured spark from your brief...', 'info');
+      var result = await AppApi.draftIdeaFromBrief(brief);
+      applyIdeaDraftToForm_(form, result.draft || {});
+      setIdeaDraftStatus_(
+        form,
+        result.fallbackUsed
+          ? 'A structured fallback draft has been generated from your brief. Review and refine any field you want.'
+          : 'The Roundtable filled the spark form from your brief. You can edit any field before saving.',
+        result.fallbackUsed ? 'warning' : 'success'
+      );
+      if (!options.silentToast) {
+        showToast_(result.fallbackUsed ? 'Draft ready with fallback guidance.' : 'Idea draft generated.', 'success');
+      }
+      return result;
+    }
+
+    function applyIdeaDraftToForm_(form, draft) {
+      populateForm_(form, {
+        Name: draft.Name || '',
+        Summary: draft.Summary || '',
+        Category: draft.Category || 'Other',
+        ProblemSolved: draft.ProblemSolved || '',
+        TargetUsers: draft.TargetUsers || '',
+        UniqueValue: draft.UniqueValue || '',
+        Tags: draft.Tags || '',
+        Stage: draft.Stage || 'Spark',
+      });
+      var nameField = form.querySelector('[name="Name"]');
+      if (nameField && nameField.value) {
+        nameField.focus();
+      }
+    }
+
+    function setIdeaDraftStatus_(form, message, tone) {
+      if (!form) {
+        return;
+      }
+      var status = form.querySelector('[data-idea-draft-status]');
+      if (!status) {
+        return;
+      }
+      status.className =
+        'rounded-lg px-4 py-3 text-sm ' +
+        (tone === 'error'
+          ? 'bg-error-container text-on-error-container'
+          : tone === 'warning'
+            ? 'bg-tertiary-container text-on-tertiary-container'
+            : tone === 'success'
+              ? 'bg-secondary-container text-on-secondary-container'
+              : 'bg-surface-container-highest text-on-surface-variant');
+      status.textContent = message;
+    }
+
+    function hideIdeaDraftStatus_(form) {
+      if (!form) {
+        return;
+      }
+      var status = form.querySelector('[data-idea-draft-status]');
+      if (!status) {
+        return;
+      }
+      status.className = 'hidden rounded-lg bg-surface-container-highest px-4 py-3 text-sm text-on-surface-variant';
+      status.textContent = '';
+    }
+
+    function clearLiveBrainstormEffects_() {
+      clearSessionAutoplayTimer_();
+      clearTypingTimer_();
+      App.state.liveTyping = null;
+    }
+
+    function clearSessionAutoplayTimer_() {
+      if (App.state.sessionAutoplayTimer) {
+        window.clearTimeout(App.state.sessionAutoplayTimer);
+        App.state.sessionAutoplayTimer = null;
+      }
+    }
+
+    function clearTypingTimer_() {
+      if (App.state.typingTimer) {
+        window.clearTimeout(App.state.typingTimer);
+        App.state.typingTimer = null;
+      }
+    }
+
+    function isActiveSessionTyping_() {
+      return !!(
+        App.state.liveTyping &&
+        App.state.activeSession &&
+        App.state.liveTyping.sessionId === App.state.activeSession.sessionId
+      );
+    }
+
+    function sessionTurnKey_(turn) {
+      return [
+        turn.Agent || '',
+        turn.Timestamp || '',
+        truncateText_(turn.Content || '', 48),
+      ].join('|');
+    }
+
+    function getTypingStateForTurn_(turn) {
+      if (!App.state.liveTyping || !turn) {
+        return null;
+      }
+      return App.state.liveTyping.turnKey === sessionTurnKey_(turn) ? App.state.liveTyping : null;
+    }
+
+    function getLatestSpokenTurn_(session) {
+      return (session && session.turns ? session.turns : [])
+        .filter(function (turn) {
+          return turn.Agent !== 'Synthesis';
+        })
+        .slice(-1)[0] || null;
+    }
+
+    function beginTurnTypewriter_(session, turn) {
+      if (!session || !turn) {
+        return;
+      }
+      var fullText = String(turn.Content || '');
+      if (!fullText) {
+        if (session.autoplay !== false && !session.complete) {
+          scheduleSessionAutoplay_(600);
+        }
+        return;
+      }
+
+      clearTypingTimer_();
+      App.state.liveTyping = {
+        sessionId: session.sessionId,
+        turnKey: sessionTurnKey_(turn),
+        fullText: fullText,
+        displayedLength: 0,
+      };
+
+      function tick() {
+        var typing = App.state.liveTyping;
+        if (!typing || typing.sessionId !== session.sessionId) {
+          return;
+        }
+        var remaining = typing.fullText.length - typing.displayedLength;
+        if (remaining <= 0) {
+          clearTypingTimer_();
+          App.state.liveTyping = null;
+          renderBrainstormRoute_(App.state.route || parseHash_(window.location.hash), false);
+          if (App.state.activeSession && App.state.activeSession.sessionId === session.sessionId) {
+            if (App.state.activeSession.complete) {
+              showToast_('Roundtable session complete. Synthesis is ready.', 'success');
+            } else if (App.state.activeSession.autoplay !== false) {
+              scheduleSessionAutoplay_(650);
+            }
+          }
+          return;
+        }
+
+        typing.displayedLength += Math.max(1, Math.min(4, Math.ceil(typing.fullText.length / 90)));
+        renderBrainstormRoute_(App.state.route || parseHash_(window.location.hash), false);
+        App.state.typingTimer = window.setTimeout(tick, remaining > 80 ? 18 : 26);
+      }
+
+      renderBrainstormRoute_(App.state.route || parseHash_(window.location.hash), false);
+      App.state.typingTimer = window.setTimeout(tick, 60);
+    }
+
+    function scheduleSessionAutoplay_(delayMs) {
+      clearSessionAutoplayTimer_();
+      var session = App.state.activeSession;
+      var route = App.state.route || parseHash_(window.location.hash);
+      if (!session || session.complete || session.loading || session.autoplay === false || isActiveSessionTyping_()) {
+        return;
+      }
+      if (
+        route.name !== 'brainstorm' ||
+        (route.query.sessionId && String(route.query.sessionId || '') !== String(session.sessionId || ''))
+      ) {
+        return;
+      }
+      App.state.sessionAutoplayTimer = window.setTimeout(function () {
+        App.state.sessionAutoplayTimer = null;
+        runNextSessionTurn_();
+      }, Number(delayMs || App.state.brainstormAutoDelayMs));
+    }
+
+    function showToast_(message, tone) {
+      var root = document.getElementById('toast-root');
+      var toast = document.createElement('div');
+      toast.className =
+        'pointer-events-auto max-w-sm rounded-xl px-4 py-3 ambient-shadow text-sm ' +
+        (tone === 'error'
+          ? 'bg-error-container text-on-error-container'
+          : 'bg-surface-container-lowest text-on-surface');
+      toast.innerHTML =
+        '<div class="flex items-start gap-3"><span class="material-symbols-outlined text-lg">' +
+        (tone === 'error' ? 'error' : 'check_circle') +
+        '</span><div>' +
+        escapeHtml_(message) +
+        '</div></div>';
+      root.appendChild(toast);
+      window.setTimeout(function () {
+        toast.remove();
+      }, 3200);
+    }
+
+    function applyTheme_(isDark) {
+      document.documentElement.classList.toggle('dark', !!isDark);
+    }
+
+    function renderMobileNavModal_() {
+      var route = App.state.route || parseHash_(window.location.hash);
+      return [
+        '<div class="pointer-events-auto mx-auto max-w-sm w-full mt-10 bg-surface-container-lowest rounded-xl ambient-shadow p-4 space-y-4">',
+        '<div class="flex items-center justify-between"><div class="font-headline text-2xl font-bold tracking-tight">Navigation</div><button type="button" data-action="close-modal" class="text-outline hover:text-on-surface"><span class="material-symbols-outlined">close</span></button></div>',
+        NAV_ITEMS.map(function (item) {
+          var active = route.root === item.key;
+          return '<button type="button" data-nav="' + item.hash + '" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg ' + (active ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-container-low') + '"><span class="material-symbols-outlined ' + (active ? 'fill' : '') + '">' + item.icon + '</span>' + escapeHtml_(item.label) + '</button>';
+        }).join(''),
+        '<button type="button" data-nav="#ideas/new" class="w-full px-4 py-3 rounded-lg bg-gradient-primary text-on-primary font-medium">New Spark</button>',
+        '</div>',
+      ].join('');
+    }
+  })();
+</script>

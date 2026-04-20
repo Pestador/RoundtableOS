@@ -1,0 +1,157 @@
+<template id="template-dashboard">
+  <section class="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto w-full space-y-10">
+    <div class="space-y-2">
+      <h1
+        class="font-headline text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface"
+        data-dashboard-greeting
+      >
+        Morning, Alex.
+      </h1>
+      <p class="text-on-surface-variant text-lg">
+        Here’s what the Roundtable is processing today.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <button
+        type="button"
+        data-nav="#ideas/new"
+        class="editorial-card p-6 text-left flex flex-col items-start gap-4 hover:bg-surface-container-low transition-all duration-200 ease-in-out group"
+      >
+        <div class="w-10 h-10 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-all duration-200 ease-in-out">
+          <span class="material-symbols-outlined">add</span>
+        </div>
+        <div>
+          <h2 class="font-headline font-bold text-xl">Add Idea</h2>
+          <p class="text-sm text-outline">Capture a spark</p>
+        </div>
+      </button>
+
+      <button
+        type="button"
+        data-nav="#brainstorm"
+        class="editorial-card p-6 text-left flex flex-col items-start gap-4 hover:bg-surface-container-low transition-all duration-200 ease-in-out group"
+      >
+        <div class="w-10 h-10 rounded-lg bg-secondary-container text-on-secondary-container flex items-center justify-center group-hover:scale-105 transition-all duration-200 ease-in-out">
+          <span class="material-symbols-outlined">psychology</span>
+        </div>
+        <div>
+          <h2 class="font-headline font-bold text-xl">Start Brainstorm</h2>
+          <p class="text-sm text-outline">Consult the AI</p>
+        </div>
+      </button>
+
+      <button
+        type="button"
+        data-action="open-resource-modal"
+        class="editorial-card p-6 text-left flex flex-col items-start gap-4 hover:bg-surface-container-low transition-all duration-200 ease-in-out group"
+      >
+        <div class="w-10 h-10 rounded-lg bg-tertiary-container text-on-tertiary-container flex items-center justify-center group-hover:scale-105 transition-all duration-200 ease-in-out">
+          <span class="material-symbols-outlined">upload_file</span>
+        </div>
+        <div>
+          <h2 class="font-headline font-bold text-xl">Add Resource</h2>
+          <p class="text-sm text-outline">To the vault</p>
+        </div>
+      </button>
+
+      <button
+        type="button"
+        data-nav="#tasks"
+        class="editorial-card p-6 text-left flex flex-col items-start gap-4 hover:bg-surface-container-low transition-all duration-200 ease-in-out group"
+      >
+        <div class="w-10 h-10 rounded-lg bg-surface-container-highest text-on-surface-variant flex items-center justify-center group-hover:scale-105 transition-all duration-200 ease-in-out">
+          <span class="material-symbols-outlined">task_alt</span>
+        </div>
+        <div>
+          <h2 class="font-headline font-bold text-xl">View Tasks</h2>
+          <p class="text-sm text-outline">Stay in motion</p>
+        </div>
+      </button>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6 xl:gap-10 items-start">
+      <div class="lg:col-span-2 space-y-8">
+        <section class="space-y-5">
+          <div class="flex items-center justify-between">
+            <h2 class="font-headline text-3xl font-bold tracking-tight">Top Priorities</h2>
+            <button
+              type="button"
+              data-nav="#ideas"
+              class="text-primary text-sm font-medium hover:underline inline-flex items-center gap-1"
+            >
+              View all
+              <span class="material-symbols-outlined text-base">arrow_forward</span>
+            </button>
+          </div>
+          <div
+            class="space-y-4"
+            data-dashboard-priorities
+          ></div>
+        </section>
+
+        <section class="space-y-5">
+          <div class="flex items-center justify-between">
+            <h2 class="font-headline text-3xl font-bold tracking-tight">Recent Insights</h2>
+            <button
+              type="button"
+              data-nav="#brainstorm/history"
+              class="text-primary text-sm font-medium hover:underline"
+            >
+              Session history
+            </button>
+          </div>
+          <div
+            class="grid gap-4 lg:grid-cols-2"
+            data-dashboard-insights
+          ></div>
+        </section>
+
+        <section class="space-y-5">
+          <div class="flex items-center justify-between">
+            <h2 class="font-headline text-3xl font-bold tracking-tight">Overview Stats</h2>
+          </div>
+          <div
+            class="grid sm:grid-cols-2 xl:grid-cols-4 gap-4"
+            data-dashboard-stats
+          ></div>
+        </section>
+      </div>
+
+      <div class="space-y-6">
+        <section class="space-y-4">
+          <h2 class="font-headline text-2xl font-bold tracking-tight">Pipeline Overview</h2>
+          <div
+            class="editorial-card p-4 space-y-3"
+            data-dashboard-pipeline
+          ></div>
+        </section>
+
+        <section class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="font-headline text-2xl font-bold tracking-tight">Recent Sessions</h2>
+            <button
+              type="button"
+              data-nav="#brainstorm/history"
+              class="text-primary text-sm font-medium hover:underline"
+            >
+              View all
+            </button>
+          </div>
+          <div
+            class="space-y-3"
+            data-dashboard-sessions
+          ></div>
+        </section>
+
+        <section class="space-y-4">
+          <h2 class="font-headline text-2xl font-bold tracking-tight">Dormant Ideas Alert</h2>
+          <div
+            class="space-y-3"
+            data-dashboard-dormant
+          ></div>
+        </section>
+      </div>
+    </div>
+  </section>
+</template>

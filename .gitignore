@@ -1,0 +1,8 @@
+.clasp.json
+.clasprc*.json
+.npm-cache/
+_inspection_screens/
+_syntax_check/
+node_modules/
+Thumbs.db
+*.log

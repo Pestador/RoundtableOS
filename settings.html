@@ -1,0 +1,400 @@
+<template id="template-settings">
+  <section class="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto w-full space-y-8">
+    <header class="space-y-3">
+      <h1 class="font-headline text-4xl font-extrabold tracking-tight">Settings</h1>
+      <p class="text-on-surface-variant text-lg max-w-3xl">
+        Configure the LLM provider, user profile, reminders, spreadsheet link, and appearance for this lightweight workspace.
+      </p>
+    </header>
+
+    <form
+      id="settings-form"
+      class="grid xl:grid-cols-2 gap-6 items-start"
+    >
+      <section class="editorial-card p-7 space-y-6">
+        <div class="space-y-1">
+          <h2 class="font-headline text-2xl font-bold tracking-tight">API Configuration</h2>
+          <p class="text-sm text-on-surface-variant">
+            Keys stay server-side in Script Properties and are never returned to the client. Pick the active provider, then keep each adapter ready with its own model and secret.
+          </p>
+        </div>
+
+        <div class="grid gap-5">
+          <label class="space-y-2 block">
+            <span class="text-xs uppercase tracking-[0.12em] font-medium">Active Provider</span>
+            <select
+              name="activeLlmProvider"
+              class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+            >
+              <option value="deepseek">DeepSeek</option>
+              <option value="gemini">Gemini</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
+          </label>
+
+          <div class="grid md:grid-cols-2 gap-4">
+            <article
+              data-provider-card="deepseek"
+              class="rounded-xl bg-surface-container-low p-5 ghost-border space-y-4 transition-all duration-200 ease-in-out"
+            >
+              <div class="space-y-1">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="font-headline text-xl font-bold tracking-tight">DeepSeek</h3>
+                  <span class="text-[10px] uppercase tracking-[0.12em] px-2 py-1 rounded-full bg-surface-container-highest text-on-surface-variant">
+                    OpenAI-style
+                  </span>
+                </div>
+                <p class="text-sm text-on-surface-variant">
+                  Direct chat-completions support for DeepSeek-backed brainstorm sessions.
+                </p>
+              </div>
+              <label class="space-y-2 block">
+                <span class="text-xs uppercase tracking-[0.12em] font-medium">Model</span>
+                <input
+                  name="deepSeekModel"
+                  type="text"
+                  class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+                />
+              </label>
+              <label class="space-y-2 block">
+                <span class="text-xs uppercase tracking-[0.12em] font-medium">API Key</span>
+                <input
+                  name="deepSeekApiKey"
+                  type="password"
+                  placeholder="Leave blank to keep the stored key"
+                  class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+                />
+              </label>
+              <div
+                data-provider-key-status="deepseek"
+                class="text-xs text-on-surface-variant"
+              ></div>
+            </article>
+
+            <article
+              data-provider-card="gemini"
+              class="rounded-xl bg-surface-container-low p-5 ghost-border space-y-4 transition-all duration-200 ease-in-out"
+            >
+              <div class="space-y-1">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="font-headline text-xl font-bold tracking-tight">Gemini</h3>
+                  <span class="text-[10px] uppercase tracking-[0.12em] px-2 py-1 rounded-full bg-surface-container-highest text-on-surface-variant">
+                    AI Studio
+                  </span>
+                </div>
+                <p class="text-sm text-on-surface-variant">
+                  Default live verification path for this build.
+                </p>
+              </div>
+              <label class="space-y-2 block">
+                <span class="text-xs uppercase tracking-[0.12em] font-medium">Model</span>
+                <input
+                  name="geminiModel"
+                  type="text"
+                  class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+                />
+              </label>
+              <label class="space-y-2 block">
+                <span class="text-xs uppercase tracking-[0.12em] font-medium">API Key</span>
+                <input
+                  name="geminiApiKey"
+                  type="password"
+                  placeholder="Leave blank to keep the stored key"
+                  class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+                />
+              </label>
+              <div
+                data-provider-key-status="gemini"
+                class="text-xs text-on-surface-variant"
+              ></div>
+            </article>
+
+            <article
+              data-provider-card="openrouter"
+              class="rounded-xl bg-surface-container-low p-5 ghost-border space-y-4 transition-all duration-200 ease-in-out"
+            >
+              <div class="space-y-1">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="font-headline text-xl font-bold tracking-tight">OpenRouter</h3>
+                  <span class="text-[10px] uppercase tracking-[0.12em] px-2 py-1 rounded-full bg-surface-container-highest text-on-surface-variant">
+                    OpenAI-style
+                  </span>
+                </div>
+                <p class="text-sm text-on-surface-variant">
+                  Ready for provider routing as soon as a key is added.
+                </p>
+              </div>
+              <label class="space-y-2 block">
+                <span class="text-xs uppercase tracking-[0.12em] font-medium">Model</span>
+                <input
+                  name="openRouterModel"
+                  type="text"
+                  class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+                />
+              </label>
+              <label class="space-y-2 block">
+                <span class="text-xs uppercase tracking-[0.12em] font-medium">API Key</span>
+                <input
+                  name="openRouterApiKey"
+                  type="password"
+                  placeholder="Leave blank to keep the stored key"
+                  class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+                />
+              </label>
+              <div
+                data-provider-key-status="openrouter"
+                class="text-xs text-on-surface-variant"
+              ></div>
+            </article>
+
+            <article
+              data-provider-card="openai"
+              class="rounded-xl bg-surface-container-low p-5 ghost-border space-y-4 transition-all duration-200 ease-in-out"
+            >
+              <div class="space-y-1">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="font-headline text-xl font-bold tracking-tight">OpenAI</h3>
+                  <span class="text-[10px] uppercase tracking-[0.12em] px-2 py-1 rounded-full bg-surface-container-highest text-on-surface-variant">
+                    Chat Completions
+                  </span>
+                </div>
+                <p class="text-sm text-on-surface-variant">
+                  Best fit if you want to run the Roundtable through direct OpenAI APIs.
+                </p>
+              </div>
+              <label class="space-y-2 block">
+                <span class="text-xs uppercase tracking-[0.12em] font-medium">Model</span>
+                <input
+                  name="openAiModel"
+                  type="text"
+                  class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+                />
+              </label>
+              <label class="space-y-2 block">
+                <span class="text-xs uppercase tracking-[0.12em] font-medium">API Key</span>
+                <input
+                  name="openAiApiKey"
+                  type="password"
+                  placeholder="Leave blank to keep the stored key"
+                  class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+                />
+              </label>
+              <div
+                data-provider-key-status="openai"
+                class="text-xs text-on-surface-variant"
+              ></div>
+            </article>
+
+            <article
+              data-provider-card="anthropic"
+              class="rounded-xl bg-surface-container-low p-5 ghost-border space-y-4 transition-all duration-200 ease-in-out"
+            >
+              <div class="space-y-1">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="font-headline text-xl font-bold tracking-tight">Anthropic</h3>
+                  <span class="text-[10px] uppercase tracking-[0.12em] px-2 py-1 rounded-full bg-surface-container-highest text-on-surface-variant">
+                    Messages
+                  </span>
+                </div>
+                <p class="text-sm text-on-surface-variant">
+                  Configured through the Messages API with the selected Claude model.
+                </p>
+              </div>
+              <label class="space-y-2 block">
+                <span class="text-xs uppercase tracking-[0.12em] font-medium">Model</span>
+                <input
+                  name="anthropicModel"
+                  type="text"
+                  class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+                />
+              </label>
+              <label class="space-y-2 block">
+                <span class="text-xs uppercase tracking-[0.12em] font-medium">API Key</span>
+                <input
+                  name="anthropicApiKey"
+                  type="password"
+                  placeholder="Leave blank to keep the stored key"
+                  class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+                />
+              </label>
+              <div
+                data-provider-key-status="anthropic"
+                class="text-xs text-on-surface-variant"
+              ></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            data-action="test-llm-connection"
+            class="px-4 py-2.5 rounded-lg ghost-border text-primary font-medium hover:bg-surface-container-low transition-all duration-200 ease-in-out"
+          >
+            Test Selected Provider
+          </button>
+          <div
+            class="text-sm text-on-surface-variant"
+            data-settings-api-status
+          ></div>
+        </div>
+      </section>
+
+      <section class="editorial-card p-7 space-y-6">
+        <div class="space-y-1">
+          <h2 class="font-headline text-2xl font-bold tracking-tight">User Profile</h2>
+          <p class="text-sm text-on-surface-variant">
+            The dashboard greeting and avatar treatment pull from this profile.
+          </p>
+        </div>
+
+        <div class="grid gap-4">
+          <label class="space-y-2 block">
+            <span class="text-xs uppercase tracking-[0.12em] font-medium">Name</span>
+            <input
+              name="userName"
+              type="text"
+              class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+            />
+          </label>
+          <label class="space-y-2 block">
+            <span class="text-xs uppercase tracking-[0.12em] font-medium">Email</span>
+            <input
+              name="userEmail"
+              type="email"
+              class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+            />
+          </label>
+          <label class="space-y-2 block">
+            <span class="text-xs uppercase tracking-[0.12em] font-medium">Avatar Accent</span>
+            <select
+              name="avatarColor"
+              class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+            >
+              <option value="primary">Primary</option>
+              <option value="secondary">Secondary</option>
+              <option value="tertiary">Tertiary</option>
+              <option value="outline">Outline</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="editorial-card p-7 space-y-6 xl:col-span-2">
+        <div class="space-y-1">
+          <h2 class="font-headline text-2xl font-bold tracking-tight">Roundtable Personas</h2>
+          <p class="text-sm text-on-surface-variant">
+            Rename each agent for the live UI and upload a portrait so brainstorm sessions feel more human without changing the underlying persona roles.
+          </p>
+        </div>
+
+        <div
+          data-persona-settings-grid
+          class="grid md:grid-cols-2 xl:grid-cols-3 gap-4"
+        ></div>
+      </section>
+
+      <section class="editorial-card p-7 space-y-6">
+        <div class="space-y-1">
+          <h2 class="font-headline text-2xl font-bold tracking-tight">Notifications</h2>
+          <p class="text-sm text-on-surface-variant">
+            Control email reminders for dormant ideas, overdue tasks, and unfinished sessions.
+          </p>
+        </div>
+
+        <div class="grid gap-4">
+          <label class="flex items-center justify-between bg-surface-container-highest rounded-lg px-4 py-3">
+            <span class="font-medium">Email reminders</span>
+            <input
+              name="notificationsEnabled"
+              type="checkbox"
+              value="true"
+              class="h-5 w-5 rounded border-outline-variant text-primary focus:ring-primary"
+            />
+          </label>
+          <label class="space-y-2 block">
+            <span class="text-xs uppercase tracking-[0.12em] font-medium">Dormant idea threshold (days)</span>
+            <input
+              name="dormantIdeaThreshold"
+              type="number"
+              min="1"
+              class="w-full bg-surface-container-highest rounded-lg px-4 py-3 focus-ring"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section class="editorial-card p-7 space-y-6">
+        <div class="space-y-1">
+          <h2 class="font-headline text-2xl font-bold tracking-tight">Workspace & Appearance</h2>
+          <p class="text-sm text-on-surface-variant">
+            Keep the Sheets linkage visible and sync a simple dark mode preference back into the app.
+          </p>
+        </div>
+
+        <div class="grid gap-4">
+          <div class="bg-surface-container-highest rounded-lg px-4 py-4 space-y-1">
+            <div class="text-xs uppercase tracking-[0.12em] font-medium text-on-surface-variant">Spreadsheet ID</div>
+            <div
+              class="text-sm break-all"
+              data-settings-spreadsheet-id
+            ></div>
+          </div>
+          <label class="flex items-center justify-between bg-surface-container-highest rounded-lg px-4 py-3">
+            <span class="font-medium">Dark mode</span>
+            <input
+              name="darkModeEnabled"
+              type="checkbox"
+              value="true"
+              class="h-5 w-5 rounded border-outline-variant text-primary focus:ring-primary"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section class="editorial-card p-7 space-y-6 xl:col-span-2">
+        <div class="space-y-1">
+          <h2 class="font-headline text-2xl font-bold tracking-tight">Danger Zone</h2>
+          <p class="text-sm text-on-surface-variant">
+            Use these carefully. They mutate persistent sheet-backed data.
+          </p>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-3">
+          <button
+            type="button"
+            data-action="clear-sessions"
+            class="px-4 py-3 rounded-lg bg-error-container text-on-error-container font-medium hover:opacity-90 transition-all duration-200 ease-in-out"
+          >
+            Clear All Sessions
+          </button>
+          <button
+            type="button"
+            data-action="reset-scores"
+            class="px-4 py-3 rounded-lg ghost-border text-error font-medium hover:bg-surface-container-low transition-all duration-200 ease-in-out"
+          >
+            Reset Scores
+          </button>
+          <button
+            type="button"
+            data-action="install-triggers"
+            class="px-4 py-3 rounded-lg ghost-border text-primary font-medium hover:bg-surface-container-low transition-all duration-200 ease-in-out"
+          >
+            Install Daily Triggers
+          </button>
+        </div>
+      </section>
+
+      <div class="xl:col-span-2 flex justify-end">
+        <button
+          type="submit"
+          class="px-6 py-3 rounded-lg bg-gradient-primary text-on-primary ambient-shadow font-medium hover:opacity-90 transition-all duration-200 ease-in-out"
+        >
+          Save Settings
+        </button>
+      </div>
+    </form>
+  </section>
+</template>
