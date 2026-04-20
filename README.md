@@ -36,6 +36,12 @@ The important distinction is:
 - `push-app-source.ps1` updates the project source
 - `redeploy-webapp.ps1` changes what the live site serves
 
+If you want one command instead of the full sequence, use:
+
+- `powershell -ExecutionPolicy Bypass -File .\scripts\save-and-deploy.ps1 -CommitMessage "short message" -DeploymentId "<your deployment id>" -ReleaseNote "short release note"`
+
+That wrapper runs validation, git save/push, Apps Script source push, and live redeploy in one pass.
+
 ## Git And GitHub Setup
 
 Recommended branch model for this lightweight Apps Script repo:
